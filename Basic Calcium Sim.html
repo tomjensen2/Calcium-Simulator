@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Basic Calcium Dynamics Simulator</title>
+
+  <!-- Bootstrap CSS (layout & basic styling) -->
+  <link 
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" 
+    rel="stylesheet"
+  >
+
+  <!-- Chart.js (for plotting) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 20px;
+      font-family: sans-serif;
+    }
+    h1 {
+      margin-bottom: 0.5em;
+    }
+    .control-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: 500;
+    }
+    .chart-row {
+      margin-bottom: 30px;
+    }
+    /* Minimal chart style: remove major gridlines, keep axis lines only. */
+    .chartjs-grid line {
+      display: none;
+    }
+    .chartjs-grid path {
+      display: none;
+    }
+    .chartjs-axis-line {
+      stroke: #333; /* axis line color */
+      stroke-width: 1;
+      shape-rendering: crispEdges;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Title and Intro -->
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mt-3 mb-3">Interactive Basic Calcium Dynamics Simulator</h1>
+      <p>
+        This interactive simulator runs a repeating 2-second sweep simulating presynaptic Ca<sup>2+</sup> dynamics in a basic well-mixed single compartment model.
+        One can use this to explore how different components of Calcium homeostasis such as Ca2+ extrusion or buffering parameters, and factors such as exogenous Calcium buffers/dyes influence free Ca2+ transients.
+      </p>
+      <p>
+        <strong>Controls</strong> let you adjust:
+      </p>
+      <ul>
+        <li>Number &amp; frequency of Ca<sup>2+</sup> pulses (each 3000&nbsp;µM/s amplitude)</li>
+        <li>Pulse duration (0–10&nbsp;ms), endogenous buffer type (fast/slow), optional dye (OGB-1)</li>
+        <li>Buffer concentration &amp; extrusion rate</li>
+      </ul>
+      <p>
+        The top chart shows <strong>free Ca<sup>2+</sup></strong>, the bottom chart 
+        shows <strong>bound buffers</strong> (endogenous + dye).  Given that the bound buffer concentration is a close reflection of Calcium dynamics measured by optical imaging methods it is important to understand the circumstances where fluorescence fails to replicate the free Ca2+ concentration.
+      </p>
+    </div>
+  </div>
+
+  <!-- Controls & Plots -->
+  <div class="row">
+    <!-- Left column: controls -->
+    <div class="col-md-4">
+      <div class="control-section">
+        <h2>Controls</h2>
+
+        <!-- Buffer concentration slider (endogenous) -->
+        <div class="mb-3">
+          <label for="bufferConcentrationSlider" class="form-label">
+            Endogenous Buffer (<span id="bufferConcentrationValue">50</span> µM)
+          </label>
+          <input 
+            type="range" 
+            class="form-range" 
+            id="bufferConcentrationSlider" 
+            min="0" max="200" step="1" 
+            value="50"
+          />
+        </div>
+
+        <!-- Extrusion rate slider -->
+        <div class="mb-3">
+          <label for="extrusionRateSlider" class="form-label">
+            Extrusion Rate (<span id="extrusionRateValue">100</span> s<sup>-1</sup>)
+          </label>
+          <input 
+            type="range" 
+            class="form-range" 
+            id="extrusionRateSlider" 
+            min="0" max="300" step="1" 
+            value="100"
+          />
+        </div>
+
+        <!-- Pulse Duration slider -->
+        <div class="mb-3">
+          <label for="pulseDurationSlider" class="form-label">
+            Ca<sup>2+</sup> Influx Duration 
+            (<span id="pulseDurationValue">2</span> ms)
+          </label>
+          <input 
+            type="range" 
+            class="form-range" 
+            id="pulseDurationSlider" 
+            min="0" max="10" step="0.5" 
+            value="2"
+          />
+        </div>
+
+        <!-- Number of pulses slider -->
+        <div class="mb-3">
+          <label for="numPulsesSlider" class="form-label">
+            Number of Ca<sup>2+</sup> Pulses:
+            <span id="numPulsesValue">1</span>
+          </label>
+          <input 
+            type="range" 
+            class="form-range"
+            id="numPulsesSlider"
+            min="1" max="10" step="1"
+            value="1"
+          />
+        </div>
+
+        <!-- Frequency selection -->
+        <div class="mb-3">
+          <label for="frequencySelect" class="form-label">Pulse Frequency (Hz)</label>
+          <select class="form-select" id="frequencySelect">
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <!-- Dye dropdown -->
+        <div class="mb-3">
+          <label for="dyeSelect" class="form-label">Ca<sup>2+</sup> Dye</label>
+          <select class="form-select" id="dyeSelect">
+            <option value="none" selected>No Ca2+ Dye</option>
+            <option value="ogb50">OGB-1 50 µM</option>
+            <option value="ogb200">OGB-1 200 µM</option>
+            <option value="ogb400">OGB-1 400 µM</option>
+          </select>
+        </div>
+
+        <!-- Buffer type toggle (fast/slow) for the endogenous buffer -->
+        <div class="mb-3">
+          <label for="bufferTypeSelect" class="form-label">Endogenous Buffer Type</label>
+          <select class="form-select" id="bufferTypeSelect">
+            <option value="fast" selected>Fast</option>
+            <option value="slow">Slow</option>
+          </select>
+        </div>
+
+        <!-- Start / Pause / Reset buttons -->
+        <div class="mb-3">
+          <button class="btn btn-primary" id="startPauseBtn">Start</button>
+          <button class="btn btn-secondary" id="resetBtn">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: charts -->
+    <div class="col-md-8">
+      <!-- Chart for Ca2+ -->
+      <div class="chart-row">
+        <canvas id="caChart" height="200"></canvas>
+      </div>
+      <!-- Chart for bound buffers -->
+      <div class="chart-row">
+        <canvas id="bChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div> <!-- /container -->
+
+<!-- Bootstrap JS (optional) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+///////////////////////////////////////////////////////////////////////////////
+// GLOBAL PARAMETERS & STATES
+///////////////////////////////////////////////////////////////////////////////
+
+// Each sweep runs 0..5 s internally, but we only plot t=1..3 => a 2 s window
+const maxTime = 5.0;        // total sweep length (internal)
+const plotMin = 1.0;        // start of displayed window
+const plotMax = 3.0;        // end of displayed window
+
+// Endogenous Buffer (fast or slow):
+const k_on_fast  = 1e6;   // M^-1 s^-1
+const k_off_fast = 100;   // s^-1
+const k_on_slow  = 1e5;
+const k_off_slow = 10;
+
+let k_on  = k_on_fast;
+let k_off = k_off_fast;
+let B_total = 50;   // µM
+
+// Dye options (approx rates for OGB-1):
+const dyeKinetics = {
+  none:    { k_on_dye: 0,    k_off_dye: 0,    D_total: 0 },
+  ogb50:   { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 50 },
+  ogb200:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 200 },
+  ogb400:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 300 }
+};
+let k_on_dye  = 0;   
+let k_off_dye = 0;
+let D_total   = 0;   // µM
+
+// State vars: [Ca, B, CaB, D, CaD]
+let Ca   = 0.005;
+let B    = 50;
+let CaB  = 0;
+let D    = 0;
+let CaD  = 0;
+
+// Extrusion rate
+let k_extrude = 100; // s^-1
+
+// Multiple pulses
+const baseAmplitude  = 3000;   // µM/s
+let numPulses        = 1;      // 1..10
+let freqHz           = 10;     // 10,20,50,100
+let pulseDurationMs  = 2.0;    // 0..10 ms
+let pulses = [];
+
+// Time stepping
+const dt           = 0.001;  
+const stepsPerFrame= 20;
+let currentTime    = 0.0;
+let isRunning      = false;
+let simInterval    = null;
+
+// Data arrays for Chart.js
+// We'll store data only for t in [1..3].
+const caData = [];
+const bData  = []; // now used for BOUND buffers only
+
+///////////////////////////////////////////////////////////////////////////////
+// UI ELEMENTS
+///////////////////////////////////////////////////////////////////////////////
+const bufferConcentrationSlider = document.getElementById('bufferConcentrationSlider');
+const bufferConcentrationValue  = document.getElementById('bufferConcentrationValue');
+
+const extrusionRateSlider       = document.getElementById('extrusionRateSlider');
+const extrusionRateValue        = document.getElementById('extrusionRateValue');
+
+const pulseDurationSlider       = document.getElementById('pulseDurationSlider');
+const pulseDurationValue        = document.getElementById('pulseDurationValue');
+
+const numPulsesSlider           = document.getElementById('numPulsesSlider');
+const numPulsesValue            = document.getElementById('numPulsesValue');
+
+const frequencySelect           = document.getElementById('frequencySelect');
+
+const dyeSelect                 = document.getElementById('dyeSelect');
+const bufferTypeSelect          = document.getElementById('bufferTypeSelect');
+
+const startPauseBtn             = document.getElementById('startPauseBtn');
+const resetBtn                  = document.getElementById('resetBtn');
+
+// Initialize labels
+bufferConcentrationValue.textContent = bufferConcentrationSlider.value;
+extrusionRateValue.textContent       = extrusionRateSlider.value;
+pulseDurationValue.textContent       = pulseDurationSlider.value;
+numPulsesValue.textContent           = numPulsesSlider.value;
+
+///////////////////////////////////////////////////////////////////////////////
+// CHARTS: Ca2+ and Bound Buffers
+///////////////////////////////////////////////////////////////////////////////
+function createMinimalChart(canvasId, label, color, yLabel) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color.replace('1)', '0.1)'),
+        fill: false,
+        tension: 0
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      scales: {
+        x: {
+          type: 'linear',
+          // We'll display 0..(plotMax - plotMin) => 0..2
+          min: 0,
+          max: (plotMax - plotMin),
+          title: {
+            display: true,
+            text: 'Time (s) [from 1..3]'
+          },
+          grid: { display: false }
+        },
+        y: {
+          min: 0,
+          title: {
+            display: true,
+            text: yLabel
+          },
+          grid: { display: false }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+// 1) Ca²⁺ chart
+const caChart = createMinimalChart('caChart', '[Ca2+]', 'rgba(255,0,0,1)', 'Ca2+ (µM)');
+
+// 2) Bound buffer chart
+const bChart  = createMinimalChart('bChart', '[Bound]', 'rgba(0,200,0,1)', 'Bound Buffers (µM)');
+
+///////////////////////////////////////////////////////////////////////////////
+// COMPUTE PULSES
+///////////////////////////////////////////////////////////////////////////////
+function computePulses() {
+  pulses = [];
+  const period = 1 / freqHz; // sec between pulses
+  const dtPulse = pulseDurationMs / 1000; // s
+
+  for (let i = 0; i < numPulses; i++) {
+    let start = 2.0 + i * period;
+    let end   = start + dtPulse;
+    // Only add if start < 5 s
+    if (start < maxTime) {
+      pulses.push({ start, end });
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// DERIVATIVES & RUNGE-KUTTA 4
+///////////////////////////////////////////////////////////////////////////////
+function derivatives(t, state) {
+  // [Ca, B, CaB, D, CaD]
+  const [CaLocal, BLocal, CaBLocal, DLocal, CaDLocal] = state;
+
+  // Check pulses
+  let J_influx = 0.0;
+  for (let p of pulses) {
+    if (t >= p.start && t < p.end) {
+      J_influx = baseAmplitude;
+      break;
+    }
+  }
+
+  const k_on_µM     = k_on      / 1e6;
+  const k_on_dye_µM = k_on_dye  / 1e6;
+
+  // Endogenous buffer flux
+  const forward1 = k_on_µM * CaLocal * BLocal;
+  const reverse1 = k_off   * CaBLocal;
+  const J_bind1  = forward1 - reverse1;
+
+  // Dye buffer flux
+  const forward2 = k_on_dye_µM * CaLocal * DLocal;
+  const reverse2 = k_off_dye    * CaDLocal;
+  const J_bind2  = forward2 - reverse2;
+
+  // dCa/dt
+  let dCa = J_influx - (k_extrude * CaLocal) - (J_bind1 + J_bind2);
+
+  // Endogenous buffer
+  let dB   = -J_bind1;
+  let dCaB =  J_bind1;
+
+  // Dye buffer
+  let dD   = -J_bind2;
+  let dCaD =  J_bind2;
+
+  return [dCa, dB, dCaB, dD, dCaD];
+}
+
+function rk4Step(t, state, dt) {
+  const k1 = derivatives(t, state);
+
+  const st2 = state.map((val, i) => val + 0.5 * dt * k1[i]);
+  const k2 = derivatives(t + 0.5*dt, st2);
+
+  const st3 = state.map((val, i) => val + 0.5 * dt * k2[i]);
+  const k3 = derivatives(t + 0.5*dt, st3);
+
+  const st4 = state.map((val, i) => val + dt * k3[i]);
+  const k4 = derivatives(t + dt, st4);
+
+  return state.map(
+    (val, i) => val + (dt/6)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i])
+  );
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// SIMULATION LOOP
+///////////////////////////////////////////////////////////////////////////////
+function simulationStep() {
+  if (!isRunning) return;
+
+  for (let i = 0; i < stepsPerFrame; i++) {
+    // End of sweep => auto-restart
+    if (currentTime >= maxTime) {
+      restartSweep();
+      break;
+    }
+
+    // Integration step
+    let state = [Ca, B, CaB, D, CaD];
+    state = rk4Step(currentTime, state, dt);
+    [Ca, B, CaB, D, CaD] = state;
+    currentTime += dt;
+
+    // Only store data if 1 <= t <= 3
+    if (currentTime >= plotMin && currentTime <= plotMax) {
+      const xVal = currentTime - plotMin; // so 1 => 0, 3 => 2
+      caData.push({ x: xVal, y: Ca });
+      // Bound buffers = CaB + CaD
+      bData.push({ x: xVal, y: (CaB + CaD) });
+    }
+  }
+
+  // Update the two charts
+  caChart.data.datasets[0].data = caData;
+  caChart.update();
+
+  bChart.data.datasets[0].data  = bData;
+  bChart.update();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// RESTART SWEEP AT t=5 s
+///////////////////////////////////////////////////////////////////////////////
+function restartSweep() {
+  currentTime = 0.0;
+
+  Ca  = 0.05;
+  B   = B_total;
+  CaB = 0;
+  D   = D_total;
+  CaD = 0;
+
+  // Clear data arrays
+  caData.length = 0;
+  bData.length  = 0;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// RESET
+///////////////////////////////////////////////////////////////////////////////
+function resetSimulation() {
+  pauseSimulation();
+  restartSweep();
+  caChart.update();
+  bChart.update();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// START / PAUSE
+///////////////////////////////////////////////////////////////////////////////
+function startSimulation() {
+  if (!isRunning) {
+    isRunning = true;
+    startPauseBtn.textContent = "Pause";
+  }
+}
+function pauseSimulation() {
+  isRunning = false;
+  startPauseBtn.textContent = "Start";
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// DYE PARAMETER
+///////////////////////////////////////////////////////////////////////////////
+function setDyeParameters(dyeChoice) {
+  const dy = dyeKinetics[dyeChoice] || dyeKinetics.none;
+  k_on_dye  = dy.k_on_dye;
+  k_off_dye = dy.k_off_dye;
+  D_total   = dy.D_total;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// EVENT LISTENERS
+///////////////////////////////////////////////////////////////////////////////
+
+// 1) Endogenous buffer concentration
+bufferConcentrationSlider.addEventListener('input', () => {
+  B_total = parseFloat(bufferConcentrationSlider.value);
+  bufferConcentrationValue.textContent = B_total;
+  resetSimulation();
+  startSimulation();
+  });
+
+// 2) Extrusion rate
+extrusionRateSlider.addEventListener('input', () => {
+  k_extrude = parseFloat(extrusionRateSlider.value);
+  extrusionRateValue.textContent = k_extrude;
+  resetSimulation();
+  startSimulation();
+});
+
+// 3) Pulse duration (ms)
+pulseDurationSlider.addEventListener('input', () => {
+  pulseDurationMs = parseFloat(pulseDurationSlider.value);
+  pulseDurationValue.textContent = pulseDurationMs;
+  computePulses();
+  resetSimulation();
+  startSimulation();
+});
+
+// 4) Number of pulses
+numPulsesSlider.addEventListener('input', () => {
+  numPulses = parseInt(numPulsesSlider.value);
+  numPulsesValue.textContent = numPulses;
+  computePulses();
+  resetSimulation();
+  startSimulation();
+});
+
+// 5) Frequency
+frequencySelect.addEventListener('change', () => {
+  freqHz = parseFloat(frequencySelect.value);
+  computePulses();
+  resetSimulation();
+  startSimulation();
+});
+
+// 6) Dye selection
+dyeSelect.addEventListener('change', () => {
+  setDyeParameters(dyeSelect.value);
+  resetSimulation();
+  startSimulation();
+});
+
+// 7) Buffer type: fast/slow
+bufferTypeSelect.addEventListener('change', () => {
+  const val = bufferTypeSelect.value;
+  if (val === 'fast') {
+    k_on  = k_on_fast;
+    k_off = k_off_fast;
+  } else {
+    k_on  = k_on_slow;
+    k_off = k_off_slow;
+  }
+  resetSimulation();
+  startSimulation();
+});
+
+// 8) Start/Pause
+startPauseBtn.addEventListener('click', () => {
+  if (!isRunning) {
+    startSimulation();
+  } else {
+    pauseSimulation();
+  }
+});
+
+// 9) Reset
+resetBtn.addEventListener('click', () => {
+  resetSimulation();
+});
+
+///////////////////////////////////////////////////////////////////////////////
+// INIT & MAIN LOOP
+///////////////////////////////////////////////////////////////////////////////
+function initSimulation() {
+  setDyeParameters('none');
+  computePulses(); 
+  restartSweep(); 
+}
+
+function main() {
+  simInterval = setInterval(simulationStep, 16); // ~60 frames/s
+}
+
+// On page load
+initSimulation();
+main();
+</script>
+
+</body>
+</html>
