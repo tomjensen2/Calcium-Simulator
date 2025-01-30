@@ -78,7 +78,9 @@
     <!-- Left column: controls -->
     <div class="col-md-4">
       <div class="control-section">
-        <h2>Controls</h2>
+        <h3>Control Options</h3>
+        <hr>
+        <h4>Calcium Buffers</h4>
 
         <!-- Buffer concentration slider (endogenous) -->
         <div class="mb-3">
@@ -94,6 +96,32 @@
           />
         </div>
 
+        <!-- Dye dropdown -->
+        <div class="mb-3">
+          <label for="dyeSelect" class="form-label">Ca<sup>2+</sup> Indicator</label>
+          <select class="form-select" id="dyeSelect">
+            <option value="none" selected>No Ca2+ Dye</option>
+            <option value="ogb50">OGB-1 50 µM</option>
+            <option value="F4">Fluo-4</option>
+            <option value="F5F">Fluo-5F</option>
+            <option value="GCs">GCaMP8s</option>
+            <option value="GCf">GCaMP8f</option>
+
+          </select>
+        </div>
+
+        <!-- Buffer type toggle (fast/slow) for the endogenous buffer -->
+        <div class="mb-3">
+          <label for="bufferTypeSelect" class="form-label">Endogenous Buffer Type</label>
+          <select class="form-select" id="bufferTypeSelect">
+            <option value="fast" selected>Fast</option>
+            <option value="slow">Slow</option>
+          </select>
+        </div>
+        <!-- Horizontal line to separate sections -->
+      <hr>
+        <h4>Calcium Extrusion</h4>
+
         <!-- Extrusion rate slider -->
         <div class="mb-3">
           <label for="extrusionRateSlider" class="form-label">
@@ -107,7 +135,9 @@
             value="100"
           />
         </div>
-
+      <!-- Horizontal line to separate sections -->
+      <hr>
+      <h4>Calcium Influx</h4>
         <!-- Pulse Duration slider -->
         <div class="mb-3">
           <label for="pulseDurationSlider" class="form-label">
@@ -149,25 +179,6 @@
           </select>
         </div>
 
-        <!-- Dye dropdown -->
-        <div class="mb-3">
-          <label for="dyeSelect" class="form-label">Ca<sup>2+</sup> Dye</label>
-          <select class="form-select" id="dyeSelect">
-            <option value="none" selected>No Ca2+ Dye</option>
-            <option value="ogb50">OGB-1 50 µM</option>
-            <option value="ogb200">OGB-1 200 µM</option>
-            <option value="ogb400">OGB-1 400 µM</option>
-          </select>
-        </div>
-
-        <!-- Buffer type toggle (fast/slow) for the endogenous buffer -->
-        <div class="mb-3">
-          <label for="bufferTypeSelect" class="form-label">Endogenous Buffer Type</label>
-          <select class="form-select" id="bufferTypeSelect">
-            <option value="fast" selected>Fast</option>
-            <option value="slow">Slow</option>
-          </select>
-        </div>
 
         <!-- Start / Pause / Reset buttons -->
         <div class="mb-3">
@@ -217,9 +228,12 @@ let B_total = 50;   // µM
 // Dye options (approx rates for OGB-1):
 const dyeKinetics = {
   none:    { k_on_dye: 0,    k_off_dye: 0,    D_total: 0 },
-  ogb50:   { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 50 },
-  ogb200:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 200 },
-  ogb400:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 300 }
+  ogb50:   { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
+  F4:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
+  F5F:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
+  GCs:   { k_on_dye: 4.3e6,  k_off_dye: 0.69,   D_total: 50 },
+  GCf:  { k_on_dye: 9.44e6,  k_off_dye: 4,   D_total: 50 }
+
 };
 let k_on_dye  = 0;   
 let k_off_dye = 0;
@@ -307,16 +321,17 @@ function createMinimalChart(canvasId, label, color, yLabel) {
         x: {
           type: 'linear',
           // We'll display 0..(plotMax - plotMin) => 0..2
-          min: 0.7,
+          min: 0.3,
           max: (plotMax - plotMin),
           title: {
             display: true,
-            text: 'Time (s) [from 1..3]'
+            text: 'Time (s)'
           },
           grid: { display: false }
         },
         y: {
           min: 0,
+          max: 10,
           title: {
             display: true,
             text: yLabel
@@ -332,7 +347,7 @@ function createMinimalChart(canvasId, label, color, yLabel) {
 }
 
 // 1) Ca²⁺ chart
-const caChart = createMinimalChart('caChart', '[Ca2+]', 'rgba(255,0,0,1)', 'Ca2+ (µM)');
+const caChart = createMinimalChart('caChart', '[Ca2+]', 'rgba(255,0,0,1)', 'Free Ca2+ Concentration (µM)');
 
 // 2) Bound buffer chart
 const bChart  = createMinimalChart('bChart', '[Bound]', 'rgba(0,200,0,1)', 'Bound Buffers (µM)');
