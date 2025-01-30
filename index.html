@@ -56,19 +56,19 @@
       <h1 class="mt-3 mb-3">Interactive Basic Calcium Dynamics Simulator</h1>
       <p>
         This interactive simulator runs a repeating 2-second sweep simulating presynaptic Ca<sup>2+</sup> dynamics in a basic well-mixed single compartment model.
-        One can use this to explore how different components of Calcium homeostasis such as Ca2+ extrusion or buffering parameters, and factors such as exogenous Calcium buffers/dyes influence free Ca2+ transients.
+        One can use this to explore how different components of Calcium homeostasis such as Ca<sup>2+</sup> extrusion or buffering parameters, and factors such as exogenous Calcium buffers/dyes influence free Ca2+ transients.
       </p>
       <p>
-        <strong>Controls</strong> let you adjust:
+        <strong>Control Options (left)</strong> let you adjust the following:
       </p>
       <ul>
-        <li>Number &amp; frequency of Ca<sup>2+</sup> pulses (each 3000&nbsp;µM/s amplitude)</li>
-        <li>Pulse duration (0–10&nbsp;ms), endogenous buffer type (fast/slow), optional dye (OGB-1)</li>
-        <li>Buffer concentration &amp; extrusion rate</li>
+        <li>Under <strong>Calcium Buffers</strong> the kinetic scheme and concentration of Ca2+ buffers and indicators can be altered to match different experimental Calcium indicators</li>
+        <li>Under <strong>Calcium Extrusion</strong> the rate of Calcium removal can be altered.  In this model we encompass all Plasma membrane Calcium removal in a single process</li>
+        <li>Under <strong>Calcium Influx</strong> the duration of Calcium influx, the number of action potentials and their frequency can be altered. </li>
       </ul>
       <p>
-        The top chart shows <strong>free Ca<sup>2+</sup></strong>, the bottom chart 
-        shows <strong>bound buffers</strong> (endogenous + dye).  Given that the bound buffer concentration is a close reflection of Calcium dynamics measured by optical imaging methods it is important to understand the circumstances where fluorescence fails to replicate the free Ca2+ concentration.
+        The top chart shows the <strong>free intracellular Ca<sup>2+</sup></strong> plotted against time, the second and third chart 
+        show the amount of <strong>Calcium Indicator or endogenous buffer bound to Ca<sup>2+</sup></strong>.  
       </p>
     </div>
   </div>
@@ -80,7 +80,7 @@
       <div class="control-section">
         <h3>Control Options</h3>
         <hr>
-        <h4>Calcium Buffers</h4>
+        <h4><strong>Calcium Buffers</strong></h4>
 
         <!-- Buffer concentration slider (endogenous) -->
         <div class="mb-3">
@@ -100,12 +100,12 @@
         <div class="mb-3">
           <label for="dyeSelect" class="form-label">Ca<sup>2+</sup> Indicator</label>
           <select class="form-select" id="dyeSelect">
-            <option value="none" selected>No Ca2+ Dye</option>
-            <option value="ogb50">OGB-1 50 µM</option>
-            <option value="F4">Fluo-4</option>
-            <option value="F5F">Fluo-5F</option>
-            <option value="GCs">GCaMP8s</option>
-            <option value="GCf">GCaMP8f</option>
+            <option value="none" selected>No Ca<sup>2+</sup> Indicator</option>
+            <option value="ogb50">OGB-1 (High affinity) </option>
+            <option value="F4">Fluo-4 (mid affinity) </option>
+            <option value="F5F">Fluo-4FF (low affinity)</option>
+            <option value="GCs">GCaMP6s</option>
+            <option value="GCf">GCaMP6f</option>
 
           </select>
         </div>
@@ -114,13 +114,13 @@
         <div class="mb-3">
           <label for="bufferTypeSelect" class="form-label">Endogenous Buffer Type</label>
           <select class="form-select" id="bufferTypeSelect">
-            <option value="fast" selected>Fast</option>
-            <option value="slow">Slow</option>
+            <option value="fast" selected>Fast (e.g. Calbindin)</option>
+            <option value="slow">Slow (e.g. Parvalbumin)</option>
           </select>
         </div>
         <!-- Horizontal line to separate sections -->
       <hr>
-        <h4>Calcium Extrusion</h4>
+        <h4><strong>Calcium Extrusion</strong></h4>
 
         <!-- Extrusion rate slider -->
         <div class="mb-3">
@@ -137,19 +137,19 @@
         </div>
       <!-- Horizontal line to separate sections -->
       <hr>
-      <h4>Calcium Influx</h4>
+      <h4><strong>Calcium Influx</strong></h4>
         <!-- Pulse Duration slider -->
         <div class="mb-3">
           <label for="pulseDurationSlider" class="form-label">
             Ca<sup>2+</sup> Influx Duration 
-            (<span id="pulseDurationValue">2</span> ms)
+            (<span id="pulseDurationValue">0.5</span> ms)
           </label>
           <input 
             type="range" 
             class="form-range" 
             id="pulseDurationSlider" 
             min="0" max="10" step="0.5" 
-            value="2"
+            value="0.5"
           />
         </div>
 
@@ -163,8 +163,8 @@
             type="range" 
             class="form-range"
             id="numPulsesSlider"
-            min="1" max="10" step="1"
-            value="1"
+            min="1" max="8" step="1"
+            value="4"
           />
         </div>
 
@@ -192,11 +192,15 @@
     <div class="col-md-8">
       <!-- Chart for Ca2+ -->
       <div class="chart-row">
-        <canvas id="caChart" height="200"></canvas>
+        <canvas id="caChart" height="100"></canvas>
+      </div>
+      <!-- Chart for bound Calcium indicators -->
+      <div class="chart-row">
+        <canvas id="iChart" height="100"></canvas>
       </div>
       <!-- Chart for bound buffers -->
       <div class="chart-row">
-        <canvas id="bChart" height="200"></canvas>
+        <canvas id="bChart" height="100"></canvas>
       </div>
     </div>
   </div>
@@ -228,9 +232,9 @@ let B_total = 50;   // µM
 // Dye options (approx rates for OGB-1):
 const dyeKinetics = {
   none:    { k_on_dye: 0,    k_off_dye: 0,    D_total: 0 },
-  ogb50:   { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
-  F4:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
-  F5F:  { k_on_dye: 1e7,  k_off_dye: 80,   D_total: 100 },
+  ogb50:   { k_on_dye: 1e7,  k_off_dye: 120,   D_total: 100 },
+  F4:  { k_on_dye: 1e7,  k_off_dye: 240,   D_total: 100 },
+  F5F:  { k_on_dye: 1e7,  k_off_dye: 500,   D_total: 100 },
   GCs:   { k_on_dye: 4.3e6,  k_off_dye: 0.69,   D_total: 50 },
   GCf:  { k_on_dye: 9.44e6,  k_off_dye: 4,   D_total: 50 }
 
@@ -251,9 +255,9 @@ let k_extrude = 100; // s^-1
 
 // Multiple pulses
 const baseAmplitude  = 3000;   // µM/s
-let numPulses        = 1;      // 1..10
+let numPulses        = 4;      // 1..10
 let freqHz           = 10;     // 10,20,50,100
-let pulseDurationMs  = 2.0;    // 0..10 ms
+let pulseDurationMs  = 0.5;    // 0..10 ms
 let pulses = [];
 
 // Time stepping
@@ -267,6 +271,7 @@ let simInterval    = null;
 // We'll store data only for t in [1..3].
 const caData = [];
 const bData  = []; // now used for BOUND buffers only
+const iData  = []; // now used for BOUND indicator only
 
 ///////////////////////////////////////////////////////////////////////////////
 // UI ELEMENTS
@@ -321,20 +326,32 @@ function createMinimalChart(canvasId, label, color, yLabel) {
         x: {
           type: 'linear',
           // We'll display 0..(plotMax - plotMin) => 0..2
-          min: 0.3,
-          max: (plotMax - plotMin),
+          min: 0.6,
+          max: 1.8,
           title: {
             display: true,
-            text: 'Time (s)'
+            text: 'Time (s)',
+            font: {
+            family: 'Arial',          // Font family
+            size: 16,                 // Font size in pixels
+            weight: 'bold',           // Font weight (e.g., 'normal', 'bold')
+            style: 'normal'           // Font style (e.g., 'normal', 'italic')
+          }
           },
           grid: { display: false }
         },
         y: {
-          min: 0,
-          max: 10,
+          min: -0.1,
+          suggestedMax: 4,
           title: {
             display: true,
-            text: yLabel
+            text: yLabel,
+            font: {
+            family: 'Arial',          // Font family
+            size: 16,                 // Font size in pixels
+            weight: 'bold',           // Font weight (e.g., 'normal', 'bold')
+            style: 'normal'           // Font style (e.g., 'normal', 'italic')
+          }
           },
           grid: { display: false }
         }
@@ -347,10 +364,13 @@ function createMinimalChart(canvasId, label, color, yLabel) {
 }
 
 // 1) Ca²⁺ chart
-const caChart = createMinimalChart('caChart', '[Ca2+]', 'rgba(255,0,0,1)', 'Free Ca2+ Concentration (µM)');
+const caChart = createMinimalChart('caChart', '[Ca2+]', 'rgba(52, 152, 219, 1) ', 'Free Ca2+ Concentration (µM)');
 
 // 2) Bound buffer chart
-const bChart  = createMinimalChart('bChart', '[Bound]', 'rgba(0,200,0,1)', 'Bound Buffers (µM)');
+const bChart  = createMinimalChart('bChart', '[Bound]', 'rgba(231, 76, 60, 1) ', 'Bound Buffers (µM)');
+
+// 3) Bound Indicator chart
+const iChart  = createMinimalChart('iChart', '[indicator]', 'rgba(46, 204, 113, 1) ', 'Bound Indicator (µM)');
 
 ///////////////////////////////////////////////////////////////////////////////
 // COMPUTE PULSES
@@ -453,17 +473,24 @@ function simulationStep() {
     if (currentTime >= plotMin && currentTime <= plotMax) {
       const xVal = currentTime - plotMin; // so 1 => 0, 3 => 2
       caData.push({ x: xVal, y: Ca });
-      // Bound buffers = CaB + CaD
-      bData.push({ x: xVal, y: (CaB + CaD) });
+      // Bound buffers = CaB
+      bData.push({ x: xVal, y: (CaB) });
+       // Bound indicator = CaD
+        iData.push({ x: xVal, y: (CaD) });
     }
   }
 
-  // Update the two charts
+  // Update the three charts
   caChart.data.datasets[0].data = caData;
   caChart.update();
 
   bChart.data.datasets[0].data  = bData;
   bChart.update();
+
+  iChart.data.datasets[0].data  = iData;
+  iChart.update();
+
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -481,6 +508,7 @@ function restartSweep() {
   // Clear data arrays
   caData.length = 0;
   bData.length  = 0;
+  iData.length  = 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -491,6 +519,7 @@ function resetSimulation() {
   restartSweep();
   caChart.update();
   bChart.update();
+  iChart.update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
