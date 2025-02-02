@@ -214,14 +214,16 @@
   autosize: true,
   xaxis: {
     title: 'X (nm)',
-    range: [0, gridLength * 1e9],
+    range: [0, 100],
     showticklabels: true,
-    scaleanchor: "y",   // Add this line
-    scaleratio: 1       // And this line
+    scaleanchor: "y",     // Tie x-axis to y-axis
+    scaleratio: 1,        // 1:1 aspect ratio
+    constrain: 'domain'   // Prevent x-axis from expanding beyond its defined range
   },
   yaxis: {
     title: 'Y (nm)',
-    range: [0, gridLength * 1e9],
+    autorange: false,     // Disable automatic range calculation
+    range: [0, 100],      // Force y-axis to remain from 0 to 100
     showticklabels: true
   },
   margin: { t: 40, l: 40, r: 40, b: 40 }
