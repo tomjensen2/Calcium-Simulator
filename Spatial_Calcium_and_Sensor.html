@@ -100,7 +100,7 @@
           <label for="numPulses" class="form-label">
             Number of Calcium Pulses: <span id="numPulsesValue">2</span>
           </label>
-          <input type="range" class="form-range" id="numPulses" min="0" max="4" step="1" value="4">
+          <input type="range" class="form-range" id="numPulses" min="0" max="4" step="1" value="2">
         </div>
         <div class="mb-3">
           <label for="pulseFrequency" class="form-label">
@@ -149,7 +149,7 @@
     let B_total = 50e-6;
     // Set initial discrete parameters using mapping arrays:
     let entryDuration = durationOptions[1] * 1e-3; // default 2 ms
-    let numPulses = pulsesOptions[1];             // default 2 pulses
+    let numPulses = pulsesOptions[2];             // default 2 pulses
     let pulseFrequency = frequencyOptions[1];     // default 10 Hz
 
     /********** Calcium Indicator Parameters **********/
