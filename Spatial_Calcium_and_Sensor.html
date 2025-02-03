@@ -100,7 +100,7 @@
           <label for="numPulses" class="form-label">
             Number of Calcium Pulses: <span id="numPulsesValue">2</span>
           </label>
-          <input type="range" class="form-range" id="numPulses" min="0" max="4" step="1" value="1">
+          <input type="range" class="form-range" id="numPulses" min="0" max="4" step="1" value="4">
         </div>
         <div class="mb-3">
           <label for="pulseFrequency" class="form-label">
@@ -206,7 +206,7 @@
       y: yAxis,
       colorscale: 'Viridis',
       zmin: 0,
-      zmax: 0.8,
+      zmax: 0.6,
       colorbar: { title: '[Ca²⁺] (µM)' }
     }];
     let heatmapLayout = {
