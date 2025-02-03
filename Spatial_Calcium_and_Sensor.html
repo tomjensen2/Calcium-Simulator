@@ -210,22 +210,20 @@
       colorbar: { title: '[Ca²⁺] (µM)' }
     }];
     let heatmapLayout = {
-  title: 'Calcium Concentration Over Time',
-  autosize: true,
-  xaxis: {
-    title: 'X (nm)',
-    range: [0, gridLength * 1e9],
-    showticklabels: true,
-    scaleanchor: "y",   // Add this line
-    scaleratio: 1       // And this line
-  },
-  yaxis: {
-    title: 'Y (nm)',
-    range: [0, gridLength * 1e9],
-    showticklabels: true
-  },
-  margin: { t: 40, l: 40, r: 40, b: 40 }
-};
+      title: 'Calcium Concentration Over Time',
+      autosize: true,
+      xaxis: {
+        title: 'X (nm)',
+        range: [0, gridLength * 1e9],
+        showticklabels: true
+      },
+      yaxis: {
+        title: 'Y (nm)',
+        range: [0, gridLength * 1e9],
+        showticklabels: true
+      },
+      margin: { t: 40, l: 40, r: 40, b: 40 }
+    };
     Plotly.newPlot('plotHeatmap', heatmapData, heatmapLayout);
 
     /********** Sensor Overlay (Calcium Sensor Marker) **********/
