@@ -56,8 +56,27 @@
     <h1>Interactive Calcium Dynamics Simulators</h1>
     <p>Aids to understand the temporal and spatial constraints of Calcium Imaging</p>
     
-    <a href="Basic-Calcium-simulator.html" class="btn btn-custom" data-bs-toggle="tooltip" data-bs-placement="right" title="Explore how calcium levels change over time in a single compartment model.">Basic Calcium Signalling Simulator</a>
-    <a href="Spatial_Calcium_and_Sensor.html" class="btn btn-custom" data-bs-toggle="tooltip" data-bs-placement="right" title="Investigate spatial aspects of calcium dynamics in a multi-compartment system.">Spatial Calcium Signalling Simulator</a>
+    <!-- Basic Simulator Button with Popover -->
+    <a href="Basic-Calcium-simulator.html" class="btn btn-custom"
+       data-bs-toggle="popover"
+       data-bs-trigger="hover focus"
+       data-bs-html="true"
+       data-bs-placement="right"
+       title="Basic Calcium Simulator Info"
+       data-bs-content="<img src='Catraces.png' alt='Basic Simulator' class='img-fluid'><p>Using a single compartment model explore how Ca<sup>2+</sup> dynamics are shaped by Calcium homeostatic mechanisms, and how different Ca<sup>2+</sup> indicators report Ca<sup>2+</sup>.</p>">
+      Basic Calcium Signalling Simulator
+    </a>
+
+    <!-- Spatial Simulator Button with Popover -->
+    <a href="Spatial_Calcium_and_Sensor.html" class="btn btn-custom"
+       data-bs-toggle="popover"
+       data-bs-trigger="hover focus"
+       data-bs-html="true"
+       data-bs-placement="right"
+       title="Spatial Calcium Simulator Info"
+       data-bs-content="<img src='bouton4web.png' alt='Spatial Simulator' class='img-fluid'><p>Explore Ca<sup>2+</sup> dynamics in a synaptic nanodomain.  This simulator visualises sub-membrane Ca<sup>2+</sup> at a active zone with a central cluster of Ca<sup>2+</sup> entry sites.  Change buffer properties and add indicators to see how space shapes Ca<sup>2+</sup> signal transduction.</p>">
+      Spatial Calcium Signalling Simulator
+    </a>
   </div>
   
   <script>
