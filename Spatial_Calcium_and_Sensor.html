@@ -118,11 +118,18 @@
       </div>
       <!-- Right Column: Plots (col-md-8) -->
       <div class="col-md-8">
-        <div class="heatmap-container mb-3">
-          <div id="plotHeatmap"></div>
-          <div id="fwhmOverlay" class="fwhm-overlay"></div>
-          <div id="insetPlot" class="inset-plot"></div>
-        </div>
+        <div 
+        class="heatmap-container mb-3" 
+        data-bs-toggle="popover" 
+        data-bs-trigger="hover"
+        data-bs-placement="left"
+        title="Sub-membrane Calcium Dynamics in an active zone" 
+        data-bs-content="This heatmap represents the free [Ca²⁺] at a 100nmx100nm active zone, the dashed circle represents a cluster of Calcium Channels and the blue dot a nearby Ca2+ sensor"
+      >
+        <div id="plotHeatmap"></div>
+        <div id="fwhmOverlay" class="fwhm-overlay"></div>
+        <div id="insetPlot" class="inset-plot"></div>
+      </div>
         <div id="plotLine"></div>
       </div>
     </div>
@@ -585,5 +592,15 @@
       Plotly.restyle('plotHeatmap', {'marker.color': [[newColor]]}, [sensorTraceIndex]);
     }
   </script>
+<script>
+  // Enable Bootstrap 5 popovers
+  document.addEventListener('DOMContentLoaded', function () {
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl);
+    });
+  });
+</script>
+
 </body>
 </html>
