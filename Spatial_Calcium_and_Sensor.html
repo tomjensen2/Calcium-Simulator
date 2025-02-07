@@ -88,8 +88,9 @@
           <select id="calciumIndicator" class="form-select">
             <option value="none" selected>No Indicator</option>
             <option value="ogb50">OGB-1 50 µM</option>
-            <option value="ogb200">OGB-1 200 µM</option>
+            <option value="ogb200">OGB-1 100 µM</option>
             <option value="ogb400">Fluo-4FF 100 µM</option>
+            <option value="GCaMP6f">GCaMP6f</option>
           </select>
         </div>
         <!-- Bootstrap Range controls with mapping arrays -->
@@ -120,7 +121,7 @@
       <div class="col-md-8">
         <div 
         class="heatmap-container mb-3" 
-        data-bs-toggle="popover" 
+        data-bs-toggle="popover"
         data-bs-trigger="hover"
         data-bs-placement="left"
         title="Sub-membrane Calcium Dynamics in an active zone" 
@@ -337,6 +338,10 @@
       } else if (value === "ogb400") {
         k_on_dye = 1e7;
         k_off_dye = 240;
+        D_total = 50e-6;
+      } else if (value === "GCaMP6f") {
+        k_on_dye = 9.44e6;
+        k_off_dye = 4;
         D_total = 50e-6;
       }
       CaD = create2DArray(gridSize, gridSize, 0);
