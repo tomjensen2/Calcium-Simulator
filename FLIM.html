@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FLIM Calcium Imaging</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Chart.js for the line/scatter plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- UTIF.js for TIFF file parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/utif@2.0.1/UTIF.min.js"></script>
+  <!-- D3 scale-chromatic for Viridis colormap -->
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <!-- Bootstrap JS (includes Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    /* Banner Styles */
+    .banner {
+      background-color: #003366; /* Dark blue background */
+      color: white; /* White text */
+      text-align: left;
+      padding: 10px;
+      font-size: 40px;
+      font-weight: bold;
+    }
+    /* Heatmap canvas style */
+    #heatmapCanvas {
+      border: 1px solid #ccc;
+      cursor: crosshair;
+    }
+    /* Selection rectangle overlay */
+    #selectionRect {
+      position: absolute;
+      border: 2px dashed red;
+      pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Banner Section -->
+  <div class="banner">
+    Fluorescence Lifetime Imaging (FLIM) for studying Synaptic Function
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <p>
+        <h5><strong>Fluorescence Lifetime Imaging (FLIM) adds another dimension to imaging data</strong> <br> <br> In imaging we record the total fluorescence at a location (as seen in the <strong>2D</strong> heatmap).  <br><br> FLIM records the time each photon arrives at the detector.  Adding a 3rd dimension to segment our data</h5>
+      </p>
+      <br>
+      <!-- <p>
+        <strong>Explore the properties of the indicators below</strong> let you view and interact with different FLIM datasets each showing the pre-synaptic response to 4 action potentials at 20hz:
+      </p> -->
+      <!-- <ul>
+        <li><strong>Oregon Green BAPTA-1</strong> is a high affinity synthetic Calcium indicator whose lifetime is highly sensitive to [Ca<sup>2+</sup>]<sub>i</sub></li>
+        <li><strong>Cal-590</strong> is a red-shifted mid affinity synthetic Calcium indicator whose lifetime is also highly sensitive to [Ca<sup>2+</sup>]<sub>i</sub></li>
+        <li><strong>iGluSnFR</strong> is a GFP-based genetically encoded neurotransmitter sensor; does its lifetime change on binding to Glutamate?</li>
+      </ul> -->
+      <!-- <p>
+        <strong>FLIM adds another dimension to imaging data:</strong> Instead of just recording the total fluorescence (as seen in the heatmap).  FLIM also recording the time each photon arrives at the detector.
+      </p> -->
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Left Column: Indicator Selection -->
+      <div class="col-md-3">
+        <h4>Indicators</h4>
+    <div class="list-group" id="indicatorList">
+        <a href="#" class="list-group-item list-group-item-action fw-bold active"
+           data-bs-toggle="popover" title="Oregon Green BAPTA-1"
+           data-bs-content="<img src='/FLIM_data/popover_images/OGB1 structure.png' alt='OGB1 Structure' class='img-fluid'> A high-affinity calcium indicator whose fluorescence lifetime changes with [Ca2+]."
+           data-indicator="Oregon Green BAPTA-1">Oregon Green BAPTA-1
+            
+        </a>
+        <a href="#" class="list-group-item list-group-item-action fw-bold"
+           data-bs-toggle="popover" title="Cal-590"
+           data-bs-content="<img src='/FLIM_data/popover_images/Cal-590.gif' alt='Cal-590 Structure' class='img-fluid'> A red-shifted calcium indicator with high affinity, commonly used for synaptic calcium imaging."
+           data-indicator="Cal-590">Cal-590
+        </a>
+        <a href="#" class="list-group-item list-group-item-action fw-bold"
+           data-bs-toggle="popover" title="iGluSnFR"
+           data-bs-content="<img src='/FLIM_data/popover_images/iGluSnFR.jpeg' alt='SF-iGluSnFR Structure' class='img-fluid'>A genetically encoded glutamate sensor, but does its fluorescence lifetime change on binding?"
+           data-indicator="iGluSnFR">iGluSnFR
+            
+        </a>
+    </div>
+        <br>
+        <!-- Normalization Section -->
+        <h4>Normalisation</h4>
+        <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="normalizationMode" id="normArbitrary" value="arbitrary" checked />
+            <label class="form-check-label" for="normArbitrary">Arbitrary Units</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="normalizationMode" id="normDeltaF" value="deltaF" />
+            <label class="form-check-label" for="normDeltaF">ΔF (F - F₀)</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="normalizationMode" id="normDeltaFOverF0" value="deltaFOverF0" />
+            <label class="form-check-label" for="normDeltaFOverF0">ΔF/F₀</label>
+          </div>
+        </div>
+      <br>
+        <!-- Baseline Time Inputs -->
+        <div class="mb-3">
+          <label for="baselineStart" class="form-label">F₀ Start (s)</label>
+          <input type="number" step="0.01" class="form-control" id="baselineStart" value="0.40" />
+        </div>
+        <div class="mb-3">
+          <label for="baselineEnd" class="form-label">F₀ End (s)</label>
+          <input type="number" step="0.01" class="form-control" id="baselineEnd" value="0.60" />
+        </div>
+      </div>
+      
+      <!-- Center Column: Heatmap and Average Fluorescence Plot -->
+      <div class="col-md-5 position-relative">
+        <h4>Line Scan Heatmap: <strong> Click-drag</strong> to see lifetime data</h4>
+        <div style="position: relative;">
+          <!-- <canvas id="heatmapCanvas" width="741" height="500"></canvas> -->
+          <canvas
+          id="heatmapCanvas"
+          title="Heatmap Interactions"
+          width="741"
+          height="500"
+          data-bs-toggle="popover"
+          data-bs-placement="auto"
+          data-bs-trigger="hover"
+          data-bs-content="These data show line-scan fluorescence intensity over time (x-axis)<br> 
+          A burst of Action potentials happens midway <br>
+          Click and drag the heatmap to plot FLIM data<br>
+          <strong> Shift-drag to compare areas</strong>."
+          style="border:1px solid #ccc;"
+        >
+        </canvas>
+          <div id="selectionRect"></div>
+        </div>
+        <h4 class="mt-3">Total Fluorescence Over Time</h4>
+        <canvas id="avgTimeChart" width="741" height="200"></canvas>
+      </div>
+      <!-- Right Column: Photon Decay Curve Plot -->
+      <div class="col-md-4">
+        <h4>Photon Decay Curve</h4>
+        <canvas id="timeChart" width="400" height="500"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /***********************
+     * Global Variables & Settings
+     ***********************/
+    let currentIndicator = "Oregon Green BAPTA-1";
+    let dataSets = {};      // Holds loaded data per indicator.
+    let currentData = null; // 3D data: [y][x][z]
+    let heatmapData = null; // 2D array computed by summing over z dimension.
+    const heatmapCanvas = document.getElementById('heatmapCanvas');
+    const heatmapCtx = heatmapCanvas.getContext('2d');
+    const selectionRect = document.getElementById('selectionRect');
+    let isDragging = false, dragStart = null, dragEnd = null;
+
+    let timeChart = null;    // Photon decay curve plot (right)
+    let avgTimeChart = null; // Average fluorescence plot (below heatmap)
+
+    // Physical mappings
+    const realTimeRange = 1.45;   // seconds for heatmap & avg plot (X-axis)
+    const distanceRange = 5;      // microns for heatmap (Y-axis)
+    const pulseTimeRange = 12.5;  // nanoseconds for decay curve plot (X-axis)
+
+    // If file fails
+    const dummyHeight = 200, dummyWidth = 200, dummyDepth = 64;
+
+    // File paths
+    const indicatorFiles = {
+      "Oregon Green BAPTA-1": "/FLIM_data/OGB1_data.tif",
+      "Cal-590": "/FLIM_data/Cal_590_data.tif",
+      "iGluSnFR": "/FLIM_data/iGluSnFR_data.tiff"
+    };
+
+    /******************************************
+     * NORMALIZATION UI (Placeholders)
+     ******************************************/
+    function getNormalizationMode() {
+      const radios = document.getElementsByName('normalizationMode');
+      for (const r of radios) {
+        if (r.checked) return r.value; 
+      }
+      return "arbitrary";
+    }
+    function getBaselineRange() {
+      const start = parseFloat(document.getElementById('baselineStart').value) || 0.4;
+      const end = parseFloat(document.getElementById('baselineEnd').value) || 0.6;
+      return { start, end };
+    }
+    function applyNormalization(heatmapOrData) {
+      const mode = getNormalizationMode();
+      const { start, end } = getBaselineRange();
+      console.log("Normalization mode:", mode, "F0 range:", start, "to", end);
+      // Real math omitted; returning unchanged data
+      return heatmapOrData;
+    }
+
+    /***********************
+     * Resample Array Helper
+     ***********************/
+    function resampleArray(arr, targetLength) {
+      if(arr.length === targetLength) return arr;
+      const resampled = [];
+      for(let i = 0; i < targetLength; i++){
+        const t = i / (targetLength - 1) * (arr.length - 1);
+        const idx = Math.floor(t);
+        const frac = t - idx;
+        const val = idx < arr.length - 1
+          ? (1 - frac) * arr[idx] + frac * arr[idx + 1]
+          : arr[idx];
+        resampled.push(val);
+      }
+      return resampled;
+    }
+
+    /***********************
+     * Dummy Data Generation
+     ***********************/
+    function generateDummyData() {
+      const data = [];
+      for (let y = 0; y < dummyHeight; y++) {
+        const row = [];
+        for (let x = 0; x < dummyWidth; x++) {
+          const depthArr = [];
+          for (let z = 0; z < dummyDepth; z++) {
+            const decay = Math.exp(-z / (dummyDepth / 4)) * 100;
+            const noise = Math.random() * 20;
+            depthArr.push(decay + noise);
+          }
+          row.push(depthArr);
+        }
+        data.push(row);
+      }
+      return data;
+    }
+
+    /***********************
+     * TIFF Loading & Processing
+     ***********************/
+    function loadIndicatorDataFromFile(indicatorName, filePath, callback) {
+      console.log("Loading TIFF file for", indicatorName, "from", filePath);
+      fetch(filePath)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("File not found: " + filePath);
+          }
+          return response.arrayBuffer();
+        })
+        .then(buffer => {
+          let ifds = UTIF.decode(buffer);
+          console.log("Decoded IFDs for", indicatorName, ":", ifds);
+          if (ifds.length === 0) {
+            throw new Error("No images found in TIFF: " + filePath);
+          }
+          UTIF.decodeImages(buffer, ifds);
+          const data = processTiffData(ifds);
+          console.log("TIFF file loaded and processed for", indicatorName);
+          callback(data);
+        })
+        .catch(err => {
+          console.warn("Error loading TIFF file for", indicatorName, err);
+          callback(null);
+        });
+    }
+
+    function processTiffData(ifds) {
+      const width = ifds[0].width;
+      const height = ifds[0].height;
+      const numPages = ifds.length;
+      const data = [];
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          row.push(new Array(numPages).fill(0));
+        }
+        data.push(row);
+      }
+      for (let z = 0; z < numPages; z++) {
+        const ifd = ifds[z];
+        const rgba = UTIF.toRGBA8(ifd);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const value = rgba[idx];  // red channel
+            data[y][x][z] = value;
+          }
+        }
+      }
+      return data;
+    }
+
+    /***********************
+     * Heatmap Creation & Drawing
+     ***********************/
+    function computeHeatmap(data) {
+      const heatmap = [];
+      for (let y = 0; y < data.length; y++) {
+        const row = [];
+        for (let x = 0; x < data[y].length; x++) {
+          let sum = 0;
+          for (let z = 0; z < data[y][x].length; z++) {
+            sum += data[y][x][z];
+          }
+          row.push(sum);
+        }
+        heatmap.push(row);
+      }
+      return heatmap;
+    }
+    function valueToColor(val, min, max) {
+      let norm = (val - min) / (max - min);
+      norm = Math.min(Math.max(norm, 0), 1);
+      return d3.interpolateViridis(norm);
+    }
+    function drawHeatmap(heatmap) {
+      const nCols = heatmap[0].length;
+      const nRows = heatmap.length;
+      const cellWidth = heatmapCanvas.width / nCols;
+      const cellHeight = heatmapCanvas.height / nRows;
+      let minVal = Infinity, maxVal = -Infinity;
+      for (let y = 0; y < nRows; y++) {
+        for (let x = 0; x < nCols; x++) {
+          const val = heatmap[y][x];
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+      }
+      heatmapCtx.clearRect(0, 0, heatmapCanvas.width, heatmapCanvas.height);
+      for (let y = 0; y < nRows; y++) {
+        for (let x = 0; x < nCols; x++) {
+          heatmapCtx.fillStyle = valueToColor(heatmap[y][x], minVal, maxVal);
+          heatmapCtx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+        }
+      }
+    }
+
+    /***********************
+     * Chart.js: Average Fluorescence Over Time
+     ***********************/
+    let targetBins = 741; // # columns
+    function initAvgChart() {
+      const canvas = document.getElementById('avgTimeChart');
+      const ctx = canvas.getContext('2d');
+      
+      // Set same width as heatmap
+      canvas.width = 741;
+      const dataPoints = []; // will fill later
+
+      avgTimeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Average Fluorescence',
+            data: dataPoints, // an array of { x, y }
+            borderColor: 'rgb(255, 99, 132)',
+            fill: false,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          layout: { padding: 0 },
+          scales: {
+            x: {
+              type: 'linear',
+              offset: false,
+              min: 0,
+              max: 1.45,
+              title: { display: true, text: 'Time (s)' }
+            },
+            y: {
+              title: { display: false, text: 'Fluorescence' },
+              ticks: {
+                mirror: true,
+                padding: 0
+              }
+            }
+          },
+          plugins: {
+            legend: { display: true }
+          }
+        }
+      });
+    }
+
+    function updateAvgChart() {
+      if (!heatmapData) return;
+      const nCols = heatmapData[0].length;
+      const nRows = heatmapData.length;
+      const avgData = [];
+      for (let j = 0; j < nCols; j++) {
+        let sum = 0;
+        for (let i = 0; i < nRows; i++) {
+          sum += heatmapData[i][j];
+        }
+        avgData.push(sum / nRows);
+      }
+      let finalData = avgData;
+      if (nCols !== targetBins) {
+        finalData = resampleArray(avgData, targetBins);
+      }
+      // Convert to { x, y } form
+      const dataPoints = finalData.map((val, i) => {
+        const t = (i / (targetBins - 1)) * realTimeRange;
+        return { x: t, y: val };
+      });
+      avgTimeChart.data.datasets[0].data = dataPoints;
+      avgTimeChart.update();
+    }
+
+    /***********************
+     * Chart.js: Photon Decay Curve
+     ***********************/
+    function initTimeChart() {
+      const ctx = document.getElementById('timeChart').getContext('2d');
+      // By default, we assume 256 slices
+      const depth = currentData ? currentData[0][0].length : 256;
+      const labels = Array.from({ length: depth }, (_, i) => ((i / (depth - 1)) * pulseTimeRange).toFixed(2));
+      timeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Photon Count',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            fill: false,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'Laser Pulse Time (ns)' },
+              min: 0,
+              max: 12.5,
+              ticks: { stepSize: 1 }
+            },
+            y: {
+              title: { display: true, text: 'Photon Count' },
+              type: 'logarithmic'
+            }
+          }
+        }
+      });
+    }
+
+    /***********************
+     * SHIFT-CLICK Decay Logic
+     ***********************/
+    // If shift is pressed => overlay in a new red dataset
+    // else => replace dataset[0]
+    function updateTimeCurve(xStart, yStart, xEnd, yEnd, shiftPressed) {
+      const nCols = heatmapData[0].length;
+      const nRows = heatmapData.length;
+      const cellWidth = heatmapCanvas.width / nCols;
+      const cellHeight = heatmapCanvas.height / nRows;
+      
+      const threshold = 5; 
+      let yIdxStart, yIdxEnd, xIdxStart, xIdxEnd;
+      if (Math.abs(yEnd - yStart) < threshold) {
+        // Single-click row
+        const clickRow = Math.round((yStart + yEnd) / 2 / cellHeight);
+        yIdxStart = yIdxEnd = clickRow;
+        xIdxStart = 0;
+        xIdxEnd = nCols - 1;
+      } else {
+        // Drag
+        xIdxStart = Math.floor(xStart / cellWidth);
+        xIdxEnd   = Math.floor(xEnd / cellWidth);
+        yIdxStart = Math.floor(yStart / cellHeight);
+        yIdxEnd   = Math.floor(yEnd / cellHeight);
+        if (xIdxStart > xIdxEnd) [xIdxStart, xIdxEnd] = [xIdxEnd, xIdxStart];
+        if (yIdxStart > yIdxEnd) [yIdxStart, yIdxEnd] = [yIdxEnd, yIdxStart];
+      }
+      
+      const depth = currentData[0][0].length;
+      const decayCurve = new Array(depth).fill(0);
+      let pixelCount = 0;
+      for (let y = yIdxStart; y <= yIdxEnd; y++) {
+        for (let x = xIdxStart; x <= xIdxEnd; x++) {
+          pixelCount++;
+          const pixelData = currentData[y][x];
+          for (let z = 0; z < depth; z++) {
+            decayCurve[z] += pixelData[z];
+          }
+        }
+      }
+      if (pixelCount > 0) {
+        for (let z = 0; z < depth; z++) {
+          decayCurve[z] /= pixelCount;
+        }
+      }
+
+      // Normalize to [0, 1]:
+      const minVal = Math.min(...decayCurve);
+      const maxVal = Math.max(...decayCurve);
+      if (maxVal > minVal) {
+        for (let z = 0; z < decayCurve.length; z++) {
+          decayCurve[z] = (decayCurve[z] - minVal) / (maxVal - minVal);
+        }
+      }
+      
+      // SHIFT => add new dataset in red. Else => replace dataset[0]
+      if (shiftPressed) {
+        const newColor = 'red';
+        timeChart.data.datasets.push({
+          label: 'Decay Curve ' + (timeChart.data.datasets.length),
+          data: decayCurve.slice(), // copy array if you like
+          borderColor: newColor,
+          fill: false,
+          pointRadius: 2
+        });
+      } else {
+    // 1) Clear all existing datasets
+    timeChart.data.datasets = [];
+    // 2) Insert the new single dataset as the primary
+    timeChart.data.datasets.push({
+      label: 'Decay Curve',
+      data: decayCurve.slice(),
+      borderColor: 'rgb(75, 192, 192)',
+      fill: false,
+      pointRadius: 2
+    });
+  }
+
+      timeChart.update();
+
+      // tBins: array of time (like 0..12.5 ns, length=depth)
+      const deptt = 256;
+      const maxTime = 12.5;
+      const tBins = Array.from({ length: deptt }, (_, i) => i * (maxTime / (deptt - 1)));
+      // decayCurve: the array you already computed
+
+      // Convert tBins and decayCurve to same length arrays
+      // e.g. tBins[i], decayCurve[i]
+
+      const fit_t0 = 3e-10;    // example
+      const fit_t1 = 9e-9;     // example
+      const minThreshold = 10; // example
+
+      const ntcVal = calculateNTC(tBins, decayCurve, fit_t0, fit_t1, minThreshold);
+      console.log("NTC Value = ", ntcVal);
+
+      // Then show it on your chart:
+      //timeChart.data.datasets[0].data = decayCurve; // the normalized or raw curve
+      //timeChart.options.plugins.title.text = `NTC = ${ntcVal.toFixed(3)}`;
+      //timeChart.options.plugins.title.display = true;
+      //timeChart.update();
+
+
+    }
+
+    /**
+ * Calculate Normalised Total Count (NTC) from a decay trace with interpolation
+ * to find a smoother peak position.
+ *
+ * @param {number[]} t - Array of time points (e.g. in seconds or ns).
+ * @param {number[]} data - Corresponding photon counts (same length as t).
+ * @param {number} fit_t0 - Starting time for the peak search (e.g. 3e-10).
+ * @param {number} fit_t1 - Integration duration after the detected peak (e.g. 9e-9).
+ * @param {number} min_threshold - Background threshold for ignoring low peaks.
+ * @returns {number} - The computed NTC value, or NaN if invalid.
+ *
+ * Logic:
+ *  1) Restrict to t >= fit_t0.
+ *  2) Interpolate the first half of that restricted data to find a smoother peak.
+ *  3) If the peak is > min_threshold, normalise data by that peak.
+ *  4) Integrate (average) from peakTime..(peakTime + fit_t1).
+ *  5) Return the resulting average (NTC).
+ */
+function calculateNTC(t, data, fit_t0, fit_t1, min_threshold) {
+  // --- 1) Restrict to t >= fit_t0 ---
+  const startIndex = t.findIndex(time => time >= fit_t0);
+  if (startIndex < 0) {
+    // No points above fit_t0, can't proceed
+    return NaN;
+  }
+  const tSub = t.slice(startIndex);
+  const dataSub = data.slice(startIndex);
+
+  if (tSub.length < 2) {
+    // Not enough points to do anything
+    return NaN;
+  }
+
+  // --- 2) Interpolate the first ~half of tSub to find a "smoother" peak ---
+  //    We'll do a simple linear interpolation on ~64 samples from t(0)..t(mid).
+  //    In your MATLAB code, it does a spline on the first half. We'll approximate
+  //    with linear interpolation for simplicity.
+  const halfIndex = Math.ceil(tSub.length / 2); // only up to ~ halfway
+  const tMid = tSub[halfIndex - 1];            // last time point in that half
+  const nSamples = 64;                         // number of interpolation samples
+
+  const tInterp = [];
+  const dataInterp = [];
+  const tStart = tSub[0];
+  const tEnd   = tMid;
+  if (tStart >= tEnd) {
+    // entire tSub might be extremely short or negative range
+    return NaN;
+  }
+
+  for (let i = 0; i < nSamples; i++) {
+    const alpha = i / (nSamples - 1);
+    const ti = tStart + alpha * (tEnd - tStart); // from tStart..tMid
+    tInterp.push(ti);
+    // linearInterpolate() to get data value at ti
+    dataInterp.push(linearInterpolate(tSub, dataSub, ti));
+  }
+
+  // find maximum in dataInterp
+  let maxValInterp = -Infinity;
+  let maxIdxInterp = 0;
+  for (let i = 0; i < dataInterp.length; i++) {
+    if (dataInterp[i] > maxValInterp) {
+      maxValInterp = dataInterp[i];
+      maxIdxInterp = i;
+    }
+  }
+
+  // actual peakTime = tInterp[maxIdxInterp]
+  const peakTime = tInterp[maxIdxInterp];
+  if (!isFinite(maxValInterp) || maxValInterp <= min_threshold) {
+    // peak is not valid or below threshold
+    return NaN;
+  }
+
+  // --- 3) Integration window => [peakTime .. peakTime+fit_t1]
+  const endTime = peakTime + fit_t1;
+  // We'll now normalise the entire dataSub by maxValInterp,
+  // then average the portion from peakTime..endTime.
+  // get actual indices in tSub for [peakTime..endTime]
+  const iStart = tSub.findIndex(time => time >= peakTime);
+  if (iStart < 0 || iStart >= tSub.length) {
+    return NaN; // no valid segment
+  }
+  const iEnd = tSub.findIndex(time => time > endTime);
+  const lastIndex = (iEnd < 0) ? (tSub.length) : iEnd; // inclusive range iStart..lastIndex-1
+
+  let sum = 0;
+  let count = 0;
+  for (let i = iStart; i < lastIndex; i++) {
+    // normalise data
+    const normVal = dataSub[i] / maxValInterp;
+    sum += normVal;
+    count++;
+  }
+  return (count > 0) ? (sum / count) : NaN;
+
+console.log("startIndex:", startIndex);
+console.log("tSub length:", tSub.length);
+console.log("tMid:", tMid, " halfIndex:", halfIndex);
+console.log("maxValInterp:", maxValInterp);
+console.log("peakTime:", peakTime, "min_threshold:", min_threshold);
+
+}
+
+/**
+ * Helper function for simple linear interpolation:
+ *   returns data(t) for t in [tArr[0], tArr[end]] if t is inside that range,
+ *   or the boundary value if outside.
+ */
+function linearInterpolate(tArr, dataArr, t) {
+  // If t < tArr[0], return dataArr[0]
+  if (t <= tArr[0]) {
+    return dataArr[0];
+  }
+  // If t > tArr[end], return dataArr[end]
+  if (t >= tArr[tArr.length - 1]) {
+    return dataArr[dataArr.length - 1];
+  }
+  // find index i where tArr[i] <= t < tArr[i+1]
+  let i = 0;
+  while (i < tArr.length - 1 && !(tArr[i] <= t && t < tArr[i+1])) {
+    i++;
+  }
+  // do linear interpolation
+  const x0 = tArr[i];
+  const x1 = tArr[i+1];
+  const y0 = dataArr[i];
+  const y1 = dataArr[i+1];
+  const alpha = (t - x0) / (x1 - x0);
+  return y0 + alpha * (y1 - y0);
+}
+
+
+
+    /***********************
+     * Heatmap Interaction
+     ***********************/
+    function setupHeatmapInteractions() {
+      heatmapCanvas.addEventListener('mousedown', function(e) {
+        const rect = heatmapCanvas.getBoundingClientRect();
+        dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        isDragging = true;
+        selectionRect.style.left = dragStart.x + 'px';
+        selectionRect.style.top = dragStart.y + 'px';
+        selectionRect.style.width = '0px';
+        selectionRect.style.height = '0px';
+        selectionRect.style.display = 'block';
+      });
+      
+      heatmapCanvas.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = heatmapCanvas.getBoundingClientRect();
+        dragEnd = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const x = Math.min(dragStart.x, dragEnd.x);
+        const y = Math.min(dragStart.y, dragEnd.y);
+        const w = Math.abs(dragEnd.x - dragStart.x);
+        const h = Math.abs(dragEnd.y - dragStart.y);
+        selectionRect.style.left = x + 'px';
+        selectionRect.style.top = y + 'px';
+        selectionRect.style.width = w + 'px';
+        selectionRect.style.height = h + 'px';
+      });
+      
+      heatmapCanvas.addEventListener('mouseup', function(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        selectionRect.style.display = 'none';
+        if (dragStart && dragEnd) {
+          // Check if SHIFT is pressed
+          const shiftPressed = e.shiftKey;
+          updateTimeCurve(dragStart.x, dragStart.y, dragEnd.x, dragEnd.y, shiftPressed);
+        }
+      });
+      
+      heatmapCanvas.addEventListener('mouseleave', function() {
+        if (isDragging) {
+          isDragging = false;
+          selectionRect.style.display = 'none';
+        }
+      });
+    }
+
+    /***********************
+     * Indicator Controls
+     ***********************/
+    function setupIndicatorControls() {
+      const links = document.querySelectorAll('#indicatorList a');
+      links.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          links.forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+          currentIndicator = this.getAttribute('data-indicator');
+          loadIndicatorData(currentIndicator);
+        });
+      });
+    }
+
+    /***********************
+     * Update the Display
+     ***********************/
+    function loadIndicatorData(indicatorName) {
+      if (dataSets[indicatorName]) {
+        currentData = dataSets[indicatorName];
+        updateDisplay();
+      } else {
+        const filePath = indicatorFiles[indicatorName];
+        loadIndicatorDataFromFile(indicatorName, filePath, function(data) {
+          dataSets[indicatorName] = data;
+          currentData = data;
+          updateDisplay();
+        });
+      }
+    }
+
+    function updateDisplay() {
+      if (!currentData) {
+        // Clear the heatmap
+        heatmapCtx.clearRect(0, 0, heatmapCanvas.width, heatmapCanvas.height);
+        heatmapCtx.font = "20px Arial";
+        heatmapCtx.fillStyle = "red";
+        heatmapCtx.textAlign = "center";
+        heatmapCtx.fillText("File not loaded", heatmapCanvas.width / 2, heatmapCanvas.height / 2);
+
+        if (timeChart) {
+          // Clear the photon decay
+          timeChart.data.datasets[0].data = [];
+          timeChart.update();
+          // Optionally clear overlays
+          // timeChart.data.datasets.splice(1);
+        }
+        if (avgTimeChart) {
+          avgTimeChart.data.datasets[0].data = [];
+          avgTimeChart.update();
+        }
+      } else {
+        heatmapData = computeHeatmap(currentData);
+        // Apply optional normalization
+        heatmapData = applyNormalization(heatmapData);
+        // Draw the heatmap
+        drawHeatmap(heatmapData);
+        // Update average
+        if (avgTimeChart) {
+          updateAvgChart();
+        }
+
+        // Clear the main decay curve
+        if (timeChart) {
+          timeChart.data.datasets[0].data = [];
+          timeChart.data.datasets.splice(1); // remove old overlays if you want
+          timeChart.update();
+        }
+        
+      }
+    }
+
+    /***********************
+     * Initialization
+     ***********************/
+    window.onload = function() {
+      setupIndicatorControls();
+      initTimeChart();
+      initAvgChart();
+      loadIndicatorData(currentIndicator);
+      setupHeatmapInteractions();
+      // Pre-load data for all indicators
+      Object.keys(indicatorFiles).forEach(indicator => {
+        loadIndicatorDataFromFile(indicator, indicatorFiles[indicator], function(data) {
+          dataSets[indicator] = data;
+          if (indicator === currentIndicator) {
+            currentData = data;
+            updateDisplay();
+          }
+        });
+      });
+    };
+
+    document.addEventListener("DOMContentLoaded", function() {
+    const heatmapEl = document.getElementById('heatmapCanvas');
+    const popover = new bootstrap.Popover(heatmapEl, {
+      container: 'body',
+      html: true,
+      sanitize: false
+    });
+
+    // Listen for the popover “shown” event.
+    heatmapEl.addEventListener('shown.bs.popover', () => {
+      setTimeout(() => {
+        popover.hide(); // Hide the popover after 10 seconds
+      }, 5_000);       // 10,000 ms = 10 seconds
+    });
+  });
+
+    document.addEventListener("DOMContentLoaded", function () {
+    // Enable Bootstrap popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl, {
+        trigger: 'hover', // Show on hover
+        placement: 'right', // Position to the right
+        container: 'body' ,// Keeps it within the viewport
+        html: true,
+        sanitize: false
+      });
+    });
+  });
+
+
+  </script>
+</body>
+</html>
