@@ -743,6 +743,28 @@ function linearInterpolate(tArr, dataArr, t) {
           selectionRect.style.display = 'none';
         }
       });
+      // TOUCH EVENTS (FOR MOBILE)
+    heatmapCanvas.addEventListener('touchstart', function (e) {
+        e.preventDefault(); // Prevents scrolling
+        const pos = getTouchPos(heatmapCanvas, e);
+        startSelection(pos.x, pos.y);
+    });
+
+    heatmapCanvas.addEventListener('touchmove', function (e) {
+        e.preventDefault(); // Prevents scrolling
+        const pos = getTouchPos(heatmapCanvas, e);
+        moveSelection(pos.x, pos.y);
+    });
+
+    heatmapCanvas.addEventListener('touchend', function () {
+        endSelection(false); // No Shift key in touch, so always `false`
+    });
+
+    heatmapCanvas.addEventListener('touchcancel', function () {
+        isDragging = false;
+        selectionRect.style.display = 'none';
+    });
+
     }
 
     /***********************
