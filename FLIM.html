@@ -175,9 +175,9 @@
 
     // File paths
     const indicatorFiles = {
-      "Oregon Green BAPTA-1": "FLIM_data/OGB1_data_8.tif",
-      "Cal-590": "FLIM_data/Cal_590_data_8.tif",
-      "iGluSnFR": "FLIM_data/iGluSnFR_data_8.tif"
+      "Oregon Green BAPTA-1": "FLIM_data/OGB1_data_8_.tif",
+      "Cal-590": "FLIM_data/Cal_590_data_8_.tif",
+      "iGluSnFR": "FLIM_data/iGluSnFR_data_8_.tif"
     };
 
     /******************************************
@@ -423,7 +423,7 @@
     function initTimeChart() {
       const ctx = document.getElementById('timeChart').getContext('2d');
       // By default, we assume 256 slices
-      const depth = currentData ? currentData[0][0].length : 256;
+      const depth = currentData ? currentData[0][0].length : 128;
       const labels = Array.from({ length: depth }, (_, i) => ((i / (depth - 1)) * pulseTimeRange).toFixed(2));
       timeChart = new Chart(ctx, {
         type: 'line',
@@ -538,7 +538,7 @@
       timeChart.update();
 
       // tBins: array of time (like 0..12.5 ns, length=depth)
-      const deptt = 256;
+      const deptt = 128;
       const maxTime = 12.5;
       const tBins = Array.from({ length: deptt }, (_, i) => i * (maxTime / (deptt - 1)));
       // decayCurve: the array you already computed
