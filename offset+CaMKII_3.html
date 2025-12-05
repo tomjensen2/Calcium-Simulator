@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ca + CaMKII with bAP/NMDAR + Mg-Block & Offset (Click-to-Stim)</title>
+
+  <!-- Bootstrap CSS (optional) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 20px;
+      font-family: sans-serif;
+    }
+    .control-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+    .chart-row {
+      margin-bottom: 30px;
+    }
+    /* Remove major gridlines in charts for a cleaner look */
+    .chartjs-grid line,
+    .chartjs-grid path {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h1 class="mt-3">
+    Ca + CaMKII with bAP / NMDAR, Mg-Block, Offset, <br>
+    <strong>and Click-to-Stimulate</strong>
+  </h1>
+
+  <p>
+    In this version, clicking (or tapping) on the <strong>top chart</strong> 
+    injects an additional pulse (bAP, NMDAR, or both) at the 
+    <strong>current simulation time</strong>. 
+    This is <em>in addition</em> to the “auto” pulses defined by 
+    <strong>Number of Pulses</strong>, <strong>Frequency</strong>, etc.
+  </p>
+
+  <div class="row">
+    <!-- Left column: Controls -->
+    <div class="col-md-4">
+      <div class="control-section">
+        <h4>Influx Mode</h4>
+        <!-- Radio Buttons for bAP, NMDAR, Paired -->
+        <div id="influxModeRadios" class="mb-3">
+          <div>
+            <input type="radio" id="bapRadio" name="influxMode" value="bAP" checked>
+            <label for="bapRadio">bAP Only</label>
+          </div>
+          <div>
+            <input type="radio" id="nmdaRadio" name="influxMode" value="NMDAR">
+            <label for="nmdaRadio">NMDAR Only</label>
+          </div>
+          <div>
+            <input type="radio" id="pairedRadio" name="influxMode" value="paired">
+            <label for="pairedRadio">Paired (bAP + NMDAR)</label>
+          </div>
+        </div>
+
+        <h4>Pulses</h4>
+        <!-- Number of pulses slider -->
+        <div class="mb-3">
+          <label for="numPulsesSlider" class="form-label">
+            Number of Pulses: <span id="numPulsesValue">4</span>
+          </label>
+          <input 
+            type="range" 
+            class="form-range"
+            id="numPulsesSlider"
+            min="0" max="80" step="1"
+            value="4"
+          />
+        </div>
+
+        <!-- Frequency selection -->
+        <div class="mb-3">
+          <label for="frequencySelect" class="form-label">Pulse Frequency (Hz)</label>
+          <select class="form-select" id="frequencySelect">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <!-- bAP duration slider -->
+        <div class="mb-3">
+          <label for="bapDurationSlider" class="form-label">
+            bAP Duration (<span id="bapDurationValue">1</span> ms)
+          </label>
+          <input 
+            type="range"
+            class="form-range"
+            id="bapDurationSlider"
+            min="1" max="10" step="1"
+            value="1"
+          />
+        </div>
+
+        <!-- Offset slider (for "paired" mode) -->
+        <div class="mb-3">
+          <label for="offsetSlider" class="form-label">
+            bAP→NMDAR Offset (<span id="offsetValue">0</span> ms)
+          </label>
+          <input
+            type="range"
+            class="form-range"
+            id="offsetSlider"
+            min="-10" max="10" step="0.5"
+            value="0"
+          />
+          <small>
+            (Positive = bAP leads, negative = NMDAR leads.)
+          </small>
+        </div>
+
+        <hr>
+
+        <h4>Ca Buffers & Extrusion</h4>
+        <!-- Endogenous buffer concentration slider -->
+        <div class="mb-3">
+          <label for="bufferConcentrationSlider" class="form-label">
+            Endogenous Buffer (<span id="bufferConcentrationValue">50</span> µM)
+          </label>
+          <input 
+            type="range" 
+            class="form-range" 
+            id="bufferConcentrationSlider" 
+            min="0" max="200" step="1" 
+            value="50"
+          />
+        </div>
+
+        <!-- Dye selection -->
+        <div class="mb-3">
+          <label for="dyeSelect" class="form-label">Ca²⁺ Indicator</label>
+          <select class="form-select" id="dyeSelect">
+            <option value="none" selected>No Indicator</option>
+            <option value="ogb50">OGB-1</option>
+            <option value="F4">Fluo-4</option>
+            <option value="F5F">Fluo-4FF</option>
+            <option value="GCs">GCaMP6s</option>
+            <option value="GCf">GCaMP6f</option>
+          </select>
+        </div>
+
+        <!-- Buffer type toggle -->
+        <div class="mb-3">
+          <label for="bufferTypeSelect" class="form-label">
+            Endogenous Buffer Type
+          </label>
+          <select class="form-select" id="bufferTypeSelect">
+            <option value="fast" selected>Fast (Calbindin-like)</option>
+            <option value="slow">Slow (Parvalbumin-like)</option>
+          </select>
+        </div>
+
+        <!-- Extrusion rate slider -->
+        <div class="mb-3">
+          <label for="extrusionRateSlider" class="form-label">
+            Extrusion Rate (<span id="extrusionRateValue">100</span> s⁻¹)
+          </label>
+          <input
+            type="range"
+            class="form-range"
+            id="extrusionRateSlider"
+            min="0" max="300" step="1"
+            value="100"
+          />
+        </div>
+
+        <!-- Start / Pause / Reset buttons -->
+        <div class="mb-3">
+          <button class="btn btn-primary" id="startPauseBtn">Start</button>
+          <button class="btn btn-secondary" id="resetBtn">Reset</button>
+        </div>
+
+        <p style="font-style: italic;">
+          <strong>Click</strong> on the top chart to trigger
+          an <em>extra</em> pulse at the current time,
+          according to the chosen <strong>Influx Mode</strong>.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right column: charts -->
+    <div class="col-md-8">
+      <!-- Ca chart (top) -->
+      <div class="chart-row">
+        <canvas id="caChart" height="130"></canvas>
+      </div>
+      <!-- CaMKII chart (bottom) -->
+      <div class="chart-row">
+        <canvas id="camk2Chart" height="130"></canvas>
+      </div>
+      <!-- others chart (bottom) -->
+      <div class="chart-row">
+        <canvas id="currentChart" height="110"></canvas>
+      </div>
+    </div>
+  </div>
+</div> <!-- /container -->
+
+<!-- Bootstrap JS (optional) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+////////////////////////////////////////////////////////////////////////////////
+// 1) GLOBAL PARAMETERS & STATES
+////////////////////////////////////////////////////////////////////////////////
+const maxTime = 3.0;    // total simulation time
+const dt = 0.0005;       
+const stepsPerFrame = 20; 
+
+let currentTime = 0.0;
+let isRunning   = false;
+let simInterval = null;
+
+// Influx modes & parameters
+let influxMode    = "bAP";  
+let numPulses     = 4;
+let freqHz        = 10;
+let bAPdurationMs = 1;   
+let offsetMs      = 0;   
+const bAP_Amplitude   = 3000; // µM/s
+const NMDAR_Amplitude = 2000; // µM/s
+const jNmdaData = [];
+const jBapData  = [];
+
+// We'll define "auto" pulses from computePulses()...
+let bAPpulses  = [];
+let nmdaPulses = [];
+
+// ...and NEW "manual" pulses arrays for on-click events:
+let bAPManual  = [];
+let nmdaManual = [];
+
+// Calcium model
+let k_on  = 1e6;  
+let k_off = 100;  
+let B_total = 50; 
+let k_on_dye  = 0;
+let k_off_dye = 0;
+let D_total   = 0;
+let k_extrude = 100;
+
+// States: Ca, B, CaB, D, CaD
+let Ca = 0.05;
+let B  = 50;
+let CaB= 0;
+let D  = 0;
+let CaD= 0;
+
+// CaMKII multi-lobe states
+let CaMCa    = [30,0,0,0];
+let CaM_CaMK = [0,0,0,0];
+let CaM_CaMKP= [0,0,0,0];
+let CaMK   = 70; 
+let CaMKP  = 0;
+let CaMKP2 = 0;
+
+// Kinetic constants for CaM & CaMKII
+const k_1C_on  = 5.0; 
+const k_1C_off = 50;
+const k_2C_on  = 10.0;
+const k_2C_off = 10;
+const k_1N_on  = 100.0;
+const k_1N_off = 2000;
+const k_2N_on  = 200.0;
+const k_2N_off = 500;
+const k_K1C_on  = 44.0;
+const k_K1C_off = 33;
+const k_K2C_on  = 44.0;
+const k_K2C_off = 0.8;
+const k_K1N_on  = 76.0;
+const k_K1N_off = 300;
+const k_K2N_on  = 76.0;
+const k_K2N_off = 20;
+
+const kCaM0_on  = 3.8e-3;
+const kCaM0_off = 5.5;
+const kCaM2C_on = 0.92;
+const kCaM2C_off= 6.8;
+const kCaM2N_on = 0.12;
+const kCaM2N_off= 1.7;
+const kCaM4_on  = 30.0;
+const kCaM4_off = 1.5;
+
+let binding_To_PCaMK = 1;
+const decay_CaM = 3.0;  
+let phospho_rate = 1;
+let phosphatase  = 1;
+let autonomous   = 1;
+const k_phosCaM    = 30.0;
+const k_dephospho  = (1/9)*phosphatase; 
+const k_P1_P2      = 1/30;  
+const k_P2_P1      = (1/6)*0.25;
+
+////////////////////////////////////////////////////////////////////////////////
+// 2) Chart Creation
+////////////////////////////////////////////////////////////////////////////////
+const caChartCtx = document.getElementById('caChart').getContext('2d');
+const caChart = new Chart(caChartCtx, {
+  type: 'line',
+  data: {
+    datasets: [{
+      label: '[Ca2+]',
+      data: [],
+      borderColor: 'rgba(52,152,219,1)',
+      backgroundColor: 'rgba(52,152,219,0.1)',
+      fill: false,
+      tension: 0,
+      pointRadius: 0
+    }]
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    scales: {
+      x: {
+        type: 'linear',
+        min: 0, 
+        max: maxTime,
+        title: { display: true, text: 'Time (s)' },
+        grid: { display: false }
+      },
+      y: {
+        suggestedMax: 4,
+        title: { display: true, text: 'Free Ca2+ (µM)' },
+        grid: { display: false }
+      }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+const camk2ChartCtx = document.getElementById('camk2Chart').getContext('2d');
+const camk2Chart = new Chart(camk2ChartCtx, {
+  type: 'line',
+  data: {
+    datasets: [
+      {
+        label: 'Active fraction',
+        data: [],
+        borderColor: 'rgba(231,76,60,1)',
+        backgroundColor: 'rgba(231,76,60,0.1)',
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      },
+      {
+        label: 'Bound fraction',
+        data: [],
+        borderColor: 'rgba(46,204,113,1)',
+        backgroundColor: 'rgba(46,204,113,0.1)',
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      },
+      {
+        label: 'Phospho fraction',
+        data: [],
+        borderColor: 'rgba(52,152,219,1)',
+        backgroundColor: 'rgba(52,152,219,0.1)',
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      },
+      {
+        label: 'P2 fraction',
+        data: [],
+        borderColor: 'rgba(155,89,182,1)',
+        backgroundColor: 'rgba(155,89,182,0.1)',
+        fill: false,
+        tension: 0,
+        pointRadius: 0
+      }
+    ]
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    scales: {
+      x: {
+        type: 'linear',
+        min: 0, 
+        max: maxTime,
+        title: { display: true, text: 'Time (s)' },
+        grid: { display: false }
+      },
+      y: {
+        min: 0,
+        max: 1,
+        title: { display: true, text: 'Fraction of total CaMKII' },
+        grid: { display: false }
+      }
+    },
+    plugins: {
+      legend: { display: true }
+    }
+  }
+});
+
+const currentChartCtx = document.getElementById('currentChart').getContext('2d');
+const currentChart = new Chart(currentChartCtx, {
+  type: 'line',
+  data: {
+    datasets: [
+      { label: 'J_NMDAR (µM/s)', data: [], tension: 0, pointRadius: 0 },
+      { label: 'J_bAP (µM/s)',   data: [], tension: 0, pointRadius: 0 }]
+    
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    scales: {
+      x: { type: 'linear', min: 0, max: maxTime, title: { display: true, text: 'Time (s)' }, grid: { display: false } },
+      y: { title: { display: true, text: 'Influx (µM/s)' }, grid: { display: false } }
+    },
+    plugins: { legend: { display: true } }
+  }
+});
+
+// Data arrays to plot
+const caData    = [];
+const c2Active  = [];
+const c2Bound   = [];
+const c2Phos    = [];
+const c2P2      = [];
+
+////////////////////////////////////////////////////////////////////////////////
+// 3) Compute auto pulses (bAP vs. NMDAR) with offset
+////////////////////////////////////////////////////////////////////////////////
+function computePulses() {
+  bAPpulses  = [];
+  nmdaPulses = [];
+
+  let period = 1 / freqHz; // seconds
+
+  for (let i = 0; i < numPulses; i++) {
+    let baseTime = 1.0 + i * period;
+    if (baseTime >= maxTime) break;
+
+    if (influxMode === "bAP") {
+      bAPpulses.push({ start: baseTime });
+    }
+    else if (influxMode === "NMDAR") {
+      nmdaPulses.push({ start: baseTime });
+    }
+    else if (influxMode === "paired") {
+      let bAPtime = baseTime + offsetMs / 1000.0;
+      if (bAPtime < maxTime && bAPtime >= 0) {
+        bAPpulses.push({ start: bAPtime });
+      }
+      nmdaPulses.push({ start: baseTime });
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 4) getCaInflux(t): incorporate Mg-block for NMDAR, plus MANUAL pulses
+////////////////////////////////////////////////////////////////////////////////
+function getInfluxComponents(t) {
+  let J_bap = 0.0;
+  let J_nmda = 0.0;
+
+  function nmdaWave(d) {
+  // e.g., alpha function peaking ~10–15 ms
+  const tau = 0.012; // 12 ms
+  return d >= 0 ? (d / tau) * Math.exp(1 - d / tau) : 0;
+}
+
+  // bAP: auto
+  for (let p of bAPpulses) {
+    let d = t - p.start;
+    if (d >= 0 && d < (bAPdurationMs/1000)) J_bap += bAP_Amplitude;
+  }
+  // bAP: manual
+  for (let p of bAPManual) {
+    let d = t - p.start;
+    if (d >= 0 && d < (bAPdurationMs/1000)) J_bap += bAP_Amplitude;
+  }
+
+  // NMDAR: auto
+  const nmdaDuration = 0.020; // consider trying 0.050 later
+  for (let g of nmdaPulses) {
+    let d = t - g.start;
+    if (d >= 0 && d < nmdaDuration) J_nmda += NMDAR_Amplitude * mgBlockFactor(t) * nmdaWave(d);;
+  }
+  // NMDAR: manual
+  for (let g of nmdaManual) {
+    let d = t - g.start;
+    if (d >= 0 && d < nmdaDuration) J_nmda += NMDAR_Amplitude * mgBlockFactor(t) * nmdaWave(d);
+  }
+
+  return { J_total: J_bap + J_nmda, J_bap, J_nmda };
+}
+
+function mgBlockFactor(t) {
+  // We'll do a simple approach: if a bAP is active, factor=1; else 0.1
+  // This function sees BOTH auto+manual bAP pulses
+  for (let p of bAPpulses) {
+    let d = t - p.start;
+    if (d>=0 && d<(bAPdurationMs/1000)) {
+      return 1.0;
+    }
+  }
+  for (let p of bAPManual) {
+    let d = t - p.start;
+    if (d>=0 && d<(bAPdurationMs/1000)) {
+      return 1.0;
+    }
+  }
+
+  return 0.05; 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 5) ODE for Ca
+////////////////////////////////////////////////////////////////////////////////
+function derivatives(t, state) {
+  // state = [Ca, B, CaB, D, CaD]
+  const [CaLocal, BLocal, CaBLocal, DLocal, CaDLocal] = state;
+
+  let { J_total, J_bap, J_nmda } = getInfluxComponents(t);
+  let J_influx = J_total;
+
+  let k_on_µM     = k_on / 1e6;
+  let k_on_dye_µM = k_on_dye / 1e6;
+
+  // Buffer
+  let fwd1 = k_on_µM*CaLocal*BLocal;
+  let rev1 = k_off*CaBLocal;
+  let J_bind1 = fwd1 - rev1;
+
+  // Dye
+  let fwd2 = k_on_dye_µM*CaLocal*DLocal;
+  let rev2 = k_off_dye*CaDLocal;
+  let J_bind2 = fwd2 - rev2;
+
+  let dCa = J_influx - (k_extrude*CaLocal) - (J_bind1 + J_bind2);
+
+  return [
+    dCa,
+    -J_bind1,
+     J_bind1,
+    -J_bind2,
+     J_bind2
+  ];
+}
+
+function rk4Step(t, state, dt) {
+  const k1 = derivatives(t, state);
+  const st2 = state.map((val,i)=> val + 0.5*dt*k1[i]);
+  const k2 = derivatives(t+0.5*dt, st2);
+
+  const st3 = state.map((val,i)=> val + 0.5*dt*k2[i]);
+  const k3 = derivatives(t+0.5*dt, st3);
+
+  const st4 = state.map((val,i)=> val + dt*k3[i]);
+  const k4 = derivatives(t+dt, st4);
+
+  return state.map(
+    (val,i)=> val + (dt/6)*(k1[i]+2*k2[i]+2*k3[i]+k4[i])
+  );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 6) CaMKII Model
+////////////////////////////////////////////////////////////////////////////////
+function stepCaMK2OneTimestep(caVal, dt) {
+  // The standard multi-lobe Euler approach
+
+  const N = 4;
+  const dCaMCa     = new Array(N).fill(0);
+  const dCaM_CaMK  = new Array(N).fill(0);
+  const dCaM_CaMKP = new Array(N).fill(0);
+
+  let dCaMK   = 0;
+  let dCaMKP  = 0;
+  let dCaMKP2 = 0;
+
+  // 1) Ca2+ binding to free CaM (C-lobe, N-lobe, etc.)
+  let C_on  = (k_1C_on * k_2C_on)/(k_1C_off + k_2C_on*caVal);
+  let C_off = (k_1C_off* k_2C_off)/(k_1C_off + k_2C_on*caVal);
+  let N_on  = (k_1N_on * k_2N_on)/(k_1N_off + k_2N_on*caVal);
+  let N_off = (k_1N_off* k_2N_off)/(k_1N_off + k_2N_on*caVal);
+
+  const kon  = [C_on,  N_on,  N_on,  C_on ];
+  const koff = [C_off, N_off, N_off, C_off];
+
+  // j=0
+  dCaMCa[0] = -kon[0]*caVal*caVal*CaMCa[0] + koff[0]*CaMCa[1]
+              - kon[1]*caVal*caVal*CaMCa[0] + koff[1]*CaMCa[2];
+  // j=1
+  dCaMCa[1] = -kon[2]*caVal*caVal*CaMCa[1] + koff[2]*CaMCa[3]
+              - koff[0]*CaMCa[1] + kon[0]*caVal*caVal*CaMCa[0];
+  // j=2
+  dCaMCa[2] = -kon[3]*caVal*caVal*CaMCa[2] + koff[3]*CaMCa[3]
+              - koff[1]*CaMCa[2] + kon[1]*caVal*caVal*CaMCa[0];
+  // j=3
+  dCaMCa[3] =  kon[2]*caVal*caVal*CaMCa[1] - koff[2]*CaMCa[3]
+              + kon[3]*caVal*caVal*CaMCa[2] - koff[3]*CaMCa[3];
+
+  // 2) Ca2+ -> CaM_CaMK
+  let KC_on  = (k_K1C_on*k_K2C_on)/(k_K1C_off + k_K2C_on*caVal);
+  let KC_off = (k_K1C_off*k_K2C_off)/(k_K1C_off + k_K2C_on*caVal);
+  let KN_on  = (k_K1N_on*k_K2N_on)/(k_K1N_off + k_K2N_on*caVal);
+  let KN_off = (k_K1N_off*k_K2N_off)/(k_K1N_off + k_K2N_on*caVal);
+
+  const kon_K  = [KC_on,KN_on,KN_on,KC_on];
+  const koff_K = [KC_off,KN_off,KN_off,KC_off];
+
+  dCaM_CaMK[0] = -kon_K[0]*caVal*caVal*CaM_CaMK[0]
+                 + koff_K[0]*CaM_CaMK[1]
+                 + koff_K[1]*CaM_CaMK[2]
+                 - kon_K[1]*caVal*caVal*CaM_CaMK[0];
+  dCaM_CaMK[1] = -kon_K[2]*caVal*caVal*CaM_CaMK[1]
+                 + koff_K[2]*CaM_CaMK[3]
+                 - koff_K[0]*CaM_CaMK[1]
+                 + kon_K[0]*caVal*caVal*CaM_CaMK[0];
+  dCaM_CaMK[2] = -kon_K[3]*caVal*caVal*CaM_CaMK[2]
+                 + koff_K[3]*CaM_CaMK[3]
+                 - koff_K[1]*CaM_CaMK[2]
+                 + kon_K[1]*caVal*caVal*CaM_CaMK[0];
+  dCaM_CaMK[3] =  kon_K[2]*caVal*caVal*CaM_CaMK[1]
+                 - koff_K[2]*CaM_CaMK[3]
+                 - koff_K[3]*CaM_CaMK[3]
+                 + kon_K[3]*caVal*caVal*CaM_CaMK[2];
+
+  // 3) Ca2+ -> CaM_CaMKP
+  let kon_P = kon_K.map(x => x*binding_To_PCaMK);
+  let koff_P= [1/decay_CaM,1/decay_CaM,1/decay_CaM,1/decay_CaM];
+
+  dCaM_CaMKP[0] = -kon_P[0]*caVal*caVal*CaM_CaMKP[0]
+                  + koff_P[0]*CaM_CaMKP[1]
+                  + koff_P[1]*CaM_CaMKP[2]
+                  - kon_P[1]*caVal*caVal*CaM_CaMKP[0];
+  dCaM_CaMKP[1] = -kon_P[2]*caVal*caVal*CaM_CaMKP[1]
+                  + koff_P[2]*CaM_CaMKP[3]
+                  - koff_P[0]*CaM_CaMKP[1]
+                  + kon_P[0]*caVal*caVal*CaM_CaMKP[0];
+  dCaM_CaMKP[2] = -kon_P[3]*caVal*caVal*CaM_CaMKP[2]
+                  + koff_P[3]*CaM_CaMKP[3]
+                  - koff_P[1]*CaM_CaMKP[2]
+                  + kon_P[1]*caVal*caVal*CaM_CaMKP[0];
+  dCaM_CaMKP[3] =  kon_P[2]*caVal*caVal*CaM_CaMKP[1]
+                  - koff_P[2]*CaM_CaMKP[3]
+                  - koff_P[3]*CaM_CaMKP[3]
+                  + kon_P[3]*caVal*caVal*CaM_CaMKP[2];
+
+  // 4) CaM binding/unbinding from CaMK
+  const kon_KCaM  = [kCaM0_on,kCaM2C_on,kCaM2N_on,kCaM4_on];
+  const koff_KCaM = [kCaM0_off,kCaM2C_off,kCaM2N_off,kCaM4_off];
+  const kon_PCaM  = kon_KCaM.map(x => x*binding_To_PCaMK);
+  const koff_PCaM = [1/decay_CaM,1/decay_CaM,1/decay_CaM,1/decay_CaM];
+
+  for (let j=0; j<N; j++) {
+    let bindK  = kon_KCaM[j]*CaMK*CaMCa[j];
+    let unbindK= koff_KCaM[j]*CaM_CaMK[j];
+    let bindP  = kon_PCaM[j]*CaMKP*CaMCa[j];
+    let unbindP= koff_PCaM[j]*CaM_CaMKP[j];
+
+    dCaMCa[j] -= (bindK + bindP);
+    dCaMCa[j] += (unbindK + unbindP);
+
+    dCaM_CaMK[j]  += (bindK - unbindK);
+    dCaM_CaMKP[j] += (bindP - unbindP);
+
+    dCaMK  -= bindK;  
+    dCaMK  += unbindK;
+    dCaMKP -= bindP;
+    dCaMKP += unbindP;
+  }
+
+  // 5) Phosphorylation
+  let sumCaM_CaMK  = CaM_CaMK.reduce((a,b)=>a+b,0);
+  let sumCaM_CaMKP = CaM_CaMKP.reduce((a,b)=>a+b,0);
+  const totalCaMKII = 70;
+  let FA = (CaMKP + CaMKP2 + sumCaM_CaMKP + sumCaM_CaMK) / totalCaMKII;
+
+  for (let j=1; j<3; j++) {
+    let ratePhos = k_phosCaM*phospho_rate*FA*CaM_CaMK[j];
+    dCaM_CaMK[j]  -= ratePhos;
+    dCaM_CaMKP[j] += ratePhos;
+  }
+
+  // 6) Dephosphorylation
+  let rateDephos = k_dephospho*CaMKP;
+  dCaMKP -= rateDephos;
+  dCaMK  += rateDephos;
+
+  // 7) P <-> P2
+  let forward = k_P1_P2*CaMKP;
+  let back    = k_P2_P1*CaMKP2;
+  dCaMKP2 += (forward - back);
+  dCaMKP  -= forward;
+  dCaMKP  += back;
+
+  // 8) Euler
+  for (let j=0; j<N; j++) {
+    CaMCa[j]     += dCaMCa[j]*dt;
+    CaM_CaMK[j]  += dCaM_CaMK[j]*dt;
+    CaM_CaMKP[j] += dCaM_CaMKP[j]*dt;
+  }
+  CaMK   += dCaMK*dt;
+  CaMKP  += dCaMKP*dt;
+  CaMKP2 += dCaMKP2*dt;
+
+  // 9) Fractions
+  let sumBound   = CaM_CaMK.reduce((a,b)=>a+b,0) + CaM_CaMKP.reduce((a,b)=>a+b,0);
+  let fracBound  = sumBound / totalCaMKII;
+  let fracPhos   = (CaMKP + CaMKP2)/totalCaMKII;
+  let fracP2     = CaMKP2 / totalCaMKII;
+  let fracActive = fracBound + (autonomous*fracPhos);
+
+  return {
+    active: fracActive,
+    bound:  fracBound,
+    phos:   fracPhos,
+    p2:     fracP2
+  };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 7) Main Simulation Loop
+////////////////////////////////////////////////////////////////////////////////
+function simulationStep() {
+  if (!isRunning) return;
+
+  for (let i = 0; i < stepsPerFrame; i++) {
+    if (currentTime >= maxTime) {
+      // End of sweep => restart
+      restartSweep();
+      break;
+    }
+
+    // 1) Integrate Ca
+    let state = [Ca,B,CaB,D,CaD];
+    state = rk4Step(currentTime, state, dt);
+    [Ca,B,CaB,D,CaD] = state;
+    currentTime += dt;
+
+    // 2) CaMK2 step
+    let results = stepCaMK2OneTimestep(Ca, dt);
+
+    // 3) Store in arrays
+    caData.push({ x: currentTime, y: Ca });
+    c2Active.push({ x: currentTime, y: results.active });
+    c2Bound.push({ x: currentTime, y: results.bound });
+    c2Phos.push({ x: currentTime, y: results.phos });
+    c2P2.push({ x: currentTime, y: results.p2 });
+    const infl = getInfluxComponents(currentTime);
+    jNmdaData.push({ x: currentTime, y: infl.J_nmda });
+    jBapData.push({  x: currentTime, y: infl.J_bap  });
+  }
+ 
+  // Update charts
+  caChart.data.datasets[0].data = caData;
+  caChart.update();
+
+  camk2Chart.data.datasets[0].data = c2Active;
+  camk2Chart.data.datasets[1].data = c2Bound;
+  camk2Chart.data.datasets[2].data = c2Phos;
+  camk2Chart.data.datasets[3].data = c2P2;
+  camk2Chart.update();
+
+  currentChart.data.datasets[0].data = jNmdaData;
+  //currentChart.data.datasets[1].data = jBapData;
+  currentChart.update();
+}
+
+function restartSweep() {
+  currentTime = 0;
+  jNmdaData.length = 0;
+  jBapData.length  = 0;
+  // reset Ca states
+  Ca  = 0.05;
+  B   = B_total;
+  CaB = 0;
+  D   = D_total;
+  CaD = 0;
+
+  // reset CaMK2 states
+  CaMCa    = [30,0,0,0];
+  CaM_CaMK = [0,0,0,0];
+  CaM_CaMKP= [0,0,0,0];
+  CaMK     = 70;
+  CaMKP    = 0;
+  CaMKP2   = 0;
+
+  // Clear data arrays
+  caData.length   = 0;
+  c2Active.length = 0;
+  c2Bound.length  = 0;
+  c2Phos.length   = 0;
+  c2P2.length     = 0;
+
+  // Also clear manual pulses so new sweep is fresh
+  bAPManual.length  = 0;
+  nmdaManual.length = 0;
+}
+
+function resetSimulation() {
+  pauseSimulation();
+  computePulses(); // re-generate the "auto" pulses
+  // Clear manual pulses in restartSweep
+  restartSweep();
+  caChart.update();
+  camk2Chart.update();
+}
+
+function startSimulation() {
+  if (!isRunning) {
+    isRunning = true;
+    startPauseBtn.textContent = "Pause";
+  }
+}
+function pauseSimulation() {
+  isRunning = false;
+  startPauseBtn.textContent = "Start";
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// 8) UI EVENT LISTENERS
+////////////////////////////////////////////////////////////////////////////////
+document.getElementById('influxModeRadios').addEventListener('change', e => {
+  influxMode = e.target.value; 
+  resetSimulation();
+  startSimulation();
+});
+
+// Number of pulses
+const numPulsesSlider = document.getElementById('numPulsesSlider');
+const numPulsesValue  = document.getElementById('numPulsesValue');
+numPulsesSlider.addEventListener('input', () => {
+  numPulses = parseInt(numPulsesSlider.value);
+  numPulsesValue.textContent = numPulses;
+  resetSimulation();
+  startSimulation();
+});
+
+// Frequency
+const frequencySelect = document.getElementById('frequencySelect');
+frequencySelect.addEventListener('change', () => {
+  freqHz = parseFloat(frequencySelect.value);
+  resetSimulation();
+  startSimulation();
+});
+
+// bAP duration
+const bapDurationSlider   = document.getElementById('bapDurationSlider');
+const bapDurationValue    = document.getElementById('bapDurationValue');
+bapDurationSlider.addEventListener('input', () => {
+  bAPdurationMs = parseFloat(bapDurationSlider.value);
+  bapDurationValue.textContent = bAPdurationMs;
+  resetSimulation();
+  startSimulation();
+});
+
+// offset
+const offsetSlider = document.getElementById('offsetSlider');
+const offsetValue  = document.getElementById('offsetValue');
+offsetSlider.addEventListener('input', () => {
+  offsetMs = parseFloat(offsetSlider.value);
+  offsetValue.textContent = offsetMs;
+  resetSimulation();
+  startSimulation();
+});
+
+// Endogenous buffer
+const bufferConcentrationSlider = document.getElementById('bufferConcentrationSlider');
+const bufferConcentrationValue  = document.getElementById('bufferConcentrationValue');
+bufferConcentrationSlider.addEventListener('input', () => {
+  B_total = parseFloat(bufferConcentrationSlider.value);
+  bufferConcentrationValue.textContent = B_total;
+  resetSimulation();
+  startSimulation();
+});
+
+// Dye
+const dyeSelect = document.getElementById('dyeSelect');
+dyeSelect.addEventListener('change', () => {
+  const dyes = {
+    none:  { k_on_dye: 0,     k_off_dye: 0,    D_total: 0 },
+    ogb50: { k_on_dye: 5e7,   k_off_dye: 120,  D_total: 50 },
+    F4:    { k_on_dye: 1e7,   k_off_dye: 240,  D_total: 50 },
+    F5F:   { k_on_dye: 1e7,   k_off_dye: 500,  D_total: 50 },
+    GCs:   { k_on_dye: 4.3e6, k_off_dye: 0.69, D_total: 50  },
+    GCf:   { k_on_dye: 9.44e6,k_off_dye: 4,    D_total: 50  }
+  };
+  const dy = dyes[dyeSelect.value] || dyes.none;
+  k_on_dye  = dy.k_on_dye;
+  k_off_dye = dy.k_off_dye;
+  D_total   = dy.D_total;
+  resetSimulation();
+  startSimulation();
+});
+
+// Buffer type
+const bufferTypeSelect = document.getElementById('bufferTypeSelect');
+bufferTypeSelect.addEventListener('change', () => {
+  if (bufferTypeSelect.value === 'fast') {
+    k_on  = 1e6;
+    k_off = 100;
+  } else {
+    k_on  = 1e5;
+    k_off = 10;
+  }
+  resetSimulation();
+  startSimulation();
+});
+
+// Extrusion
+const extrusionRateSlider = document.getElementById('extrusionRateSlider');
+const extrusionRateValue  = document.getElementById('extrusionRateValue');
+extrusionRateSlider.addEventListener('input', () => {
+  k_extrude = parseFloat(extrusionRateSlider.value);
+  extrusionRateValue.textContent = k_extrude;
+  resetSimulation();
+  startSimulation();
+});
+
+// Start/Pause
+const startPauseBtn = document.getElementById('startPauseBtn');
+startPauseBtn.addEventListener('click', () => {
+  if (!isRunning) {
+    startSimulation();
+  } else {
+    pauseSimulation();
+  }
+});
+
+// Reset
+const resetBtn = document.getElementById('resetBtn');
+resetBtn.addEventListener('click', () => {
+  resetSimulation();
+});
+
+////////////////////////////////////////////////////////////////////////////////
+// 9) INIT & MAIN
+////////////////////////////////////////////////////////////////////////////////
+function initSimulation() {
+  computePulses();
+  restartSweep();
+  startSimulation();
+}
+
+// MAIN LOOP
+function main() {
+  simInterval = setInterval(simulationStep, 16); // ~60fps
+}
+
+initSimulation();
+main();
+
+////////////////////////////////////////////////////////////////////////////////
+// 10) CLICK EVENT => MANUAL PULSES
+////////////////////////////////////////////////////////////////////////////////
+// We'll attach a click listener to the top chart's canvas
+const caChartCanvas = document.getElementById('caChart');
+caChartCanvas.addEventListener('click', (evt) => {
+  // If the simulation is paused or ended, do nothing
+  if (!isRunning) return;
+
+  // Based on the user-chosen influxMode, we add pulses to manual arrays
+  if (influxMode === "bAP") {
+    bAPManual.push({ start: currentTime });
+    console.log(`User click => manual bAP at t=${currentTime.toFixed(3)}s`);
+  }
+  else if (influxMode === "NMDAR") {
+    nmdaManual.push({ start: currentTime });
+    console.log(`User click => manual NMDAR at t=${currentTime.toFixed(3)}s`);
+  }
+  else if (influxMode === "paired") {
+    // We'll add both a bAP and an NMDAR at the same instant
+    // or do offset if you like:
+    bAPManual.push({ start: currentTime });
+    nmdaManual.push({ start: currentTime });
+    console.log(
+      `User click => manual PAIRED at t=${currentTime.toFixed(3)}s`
+    );
+  }
+});
+</script>
+</body>
+</html>
