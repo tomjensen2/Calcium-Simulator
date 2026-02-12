@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FLIM Calcium Imaging</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Chart.js for the line/scatter plots -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- UTIF.js for TIFF file parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/utif@2.0.1/UTIF.min.js"></script>
+  <!-- D3 scale-chromatic for Viridis colormap -->
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <!-- Bootstrap JS (includes Popper) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    /* Banner Styles */
+    .banner {
+      background-color: #003366; /* Dark blue background */
+      color: white; /* White text */
+      text-align: left;
+      padding: 10px;
+      font-size: 40px;
+      font-weight: bold;
+    }
+    /* Heatmap canvas style */
+    #heatmapCanvas {
+      border: 1px solid #ccc;
+      cursor: crosshair;
+    }
+    /* Selection rectangle overlay */
+    #selectionRect {
+      position: absolute;
+      border: 2px dashed red;
+      pointer-events: none;
+      display: none;
+    }
+    /* Loading indicator */
+    #loadingIndicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 1000;
+      display: none;
+    }
+    /* Prevent chart overflow */
+    #timeChart {
+      max-width: 100%;
+      height: auto !important;
+    }
+    /* Ensure columns don't overlap */
+    .col-md-4, .col-md-5, .col-md-6, .col-lg-4, .col-lg-5 {
+      padding-left: 15px;
+      padding-right: 15px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .row {
+      margin-left: -15px;
+      margin-right: -15px;
+    }
+    /* Container fluid proper spacing */
+    .container-fluid {
+      overflow-x: hidden;
+    }
+    /* NTC Result styling */
+    #ntcResult .alert {
+      transition: border-left 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <!-- Global header -->
+    <nav class="navbar navbar-light bg-white shadow-sm mb-3">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html">SignalLab</a>
+        <span class="navbar-text d-none d-md-inline">
+          Interactive experiments in cell and neural signalling
+        </span>
+      </div>
+    </nav>
+  <!-- Banner Section -->
+  <div class="banner">
+    Fluorescence Lifetime Imaging (FLIM) for studying Synaptic Function
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <p>
+        <h5><strong>Fluorescence Lifetime Imaging (FLIM) adds another dimension to imaging data</strong> <br> <br> In imaging we record the total fluorescence at a location (as seen in the <strong>2D</strong> heatmap).  <br><br> FLIM records the time each photon arrives at the detector.  Adding a 3rd dimension to segment our data</h5>
+      </p>
+      <br>
+      <!-- <p>
+        <strong>Explore the properties of the indicators below</strong> let you view and interact with different FLIM datasets each showing the pre-synaptic response to 4 action potentials at 20hz:
+      </p> -->
+      <!-- <ul>
+        <li><strong>Oregon Green BAPTA-1</strong> is a high affinity synthetic Calcium indicator whose lifetime is highly sensitive to [Ca<sup>2+</sup>]<sub>i</sub></li>
+        <li><strong>Cal-590</strong> is a red-shifted mid affinity synthetic Calcium indicator whose lifetime is also highly sensitive to [Ca<sup>2+</sup>]<sub>i</sub></li>
+        <li><strong>iGluSnFR</strong> is a GFP-based genetically encoded neurotransmitter sensor; does its lifetime change on binding to Glutamate?</li>
+      </ul> -->
+      <!-- <p>
+        <strong>FLIM adds another dimension to imaging data:</strong> Instead of just recording the total fluorescence (as seen in the heatmap).  FLIM also recording the time each photon arrives at the detector.
+      </p> -->
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Left Column: Indicator Selection -->
+      <div class="col-md-2 col-lg-2">
+        <h4>Indicators</h4>
+    <div class="list-group" id="indicatorList">
+        <a href="#" class="list-group-item list-group-item-action fw-bold active"
+           data-bs-toggle="popover" title="Oregon Green BAPTA-1"
+           data-bs-content="<img src='FLIM_data/popover_images/OGB1 structure.png' alt='OGB1 Structure' class='img-fluid'> A high-affinity calcium indicator whose fluorescence lifetime changes with [Ca2+]."
+           data-indicator="Oregon Green BAPTA-1">Oregon Green BAPTA-1
+
+```
+    </a>
+    <a href="#" class="list-group-item list-group-item-action fw-bold"
+       data-bs-toggle="popover" title="Cal-590"
+       data-bs-content="<img src='FLIM_data/popover_images/Cal-590.gif' alt='Cal-590 Structure' class='img-fluid'> A red-shifted calcium indicator with high affinity, commonly used for synaptic calcium imaging."
+       data-indicator="Cal-590">Cal-590
+    </a>
+    <a href="#" class="list-group-item list-group-item-action fw-bold"
+       data-bs-toggle="popover" title="iGluSnFR"
+       data-bs-content="<img src='FLIM_data/popover_images/iGluSnFR.jpeg' alt='SF-iGluSnFR Structure' class='img-fluid'>A genetically encoded glutamate sensor, but does its fluorescence lifetime change on binding?"
+       data-indicator="iGluSnFR">iGluSnFR
+        
+    </a>
+</div>
+    <br>
+    <!-- Normalization Section -->
+    <h4>Normalisation</h4>
+    <div class="mb-3">
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="normalizationMode" id="normArbitrary" value="arbitrary" checked />
+        <label class="form-check-label" for="normArbitrary">Arbitrary Units</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="normalizationMode" id="normDeltaF" value="deltaF" />
+        <label class="form-check-label" for="normDeltaF">ΔF (F - F₀)</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="normalizationMode" id="normDeltaFOverF0" value="deltaFOverF0" />
+        <label class="form-check-label" for="normDeltaFOverF0">ΔF/F₀</label>
+      </div>
+    </div>
+  <br>
+    <!-- Baseline Time Inputs -->
+    <div class="mb-3">
+      <label for="baselineStart" class="form-label">F₀ Start (s)</label>
+      <input type="number" step="0.01" class="form-control" id="baselineStart" value="0.40" />
+    </div>
+    <div class="mb-3">
+      <label for="baselineEnd" class="form-label">F₀ End (s)</label>
+      <input type="number" step="0.01" class="form-control" id="baselineEnd" value="0.60" />
+    </div>
+    <br>
+    <!-- NTC Calculation Section -->
+    <h4>NTC & [Ca²⁺] Calculation</h4>
+    <div class="mb-3">
+      <label for="ntcFitT0" class="form-label">Fit Start (ns)</label>
+      <input type="number" step="0.1" class="form-control" id="ntcFitT0" value="0.3" />
+      <small class="form-text text-muted">Starting point to seek FLIM peak</small>
+    </div>
+    <div class="mb-3">
+      <label for="ntcFitT1" class="form-label">Integration Duration (ns)</label>
+      <input type="number" step="0.1" class="form-control" id="ntcFitT1" value="9.0" />
+      <small class="form-text text-muted">Integration period after detected peak</small>
+    </div>
+    <div class="mb-3">
+      <label for="ntcBgThreshold" class="form-label">Background Threshold</label>
+      <input type="number" step="1" class="form-control" id="ntcBgThreshold" value="10" />
+      <small class="form-text text-muted">Min photon count threshold</small>
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="autoCalculateNTC" checked />
+      <label class="form-check-label" for="autoCalculateNTC">
+        Auto-calculate on selection
+      </label>
+    </div>
+    <div class="mb-3">
+      <button id="calculateNTC" class="btn btn-primary w-100">Calculate NTC & [Ca²⁺]</button>
+    </div>
+    <div class="mb-3" id="ntcResult" style="display: none;">
+      <div class="alert alert-info" style="font-size: 16px; font-weight: bold;">
+        <strong>NTC Value:</strong> <span id="ntcValue">-</span><br>
+        <strong>[Ca²⁺]:</strong> <span id="calciumValue">-</span> nM
+      </div>
+    </div>
+  </div>
+  
+  <!-- Center Column: Heatmap and Average Fluorescence Plot -->
+  <div class="col-md-6 col-lg-5 position-relative">
+    <h4>Line Scan Heatmap: <strong> Click-drag</strong> to see lifetime data</h4>
+    <div style="position: relative;">
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator">Loading image...</div>
+      <!-- <canvas id="heatmapCanvas" width="741" height="500"></canvas> -->
+      <canvas
+      id="heatmapCanvas"
+      title="Heatmap Interactions"
+      width="741"
+      height="500"
+      data-bs-toggle="popover"
+      data-bs-placement="top"
+      data-bs-trigger="hover"
+      data-bs-content="These data show line-scan fluorescence intensity over time (x-axis)<br> 
+      <strong> Shift-drag to compare lifetime data in the areas</strong>."
+      style="border:1px solid #ccc;"
+    >
+    </canvas>
+      <div id="selectionRect"></div>
+    </div>
+    <h4 class="mt-3">Total Fluorescence Over Time</h4>
+    <canvas id="avgTimeChart" width="741" height="200"></canvas>
+  </div>
+  <!-- Right Column: Photon Decay Curve Plot -->
+  <div class="col-md-4 col-lg-4">
+    <h4>Lifetime Plot: drag on heatmap to populate</h4>
+    <div style="max-width: 100%; overflow: hidden;">
+      <canvas id="timeChart" width="400" height="400" style="max-width: 100%; height: auto;"></canvas>
+    </div>
+    <br>
+    <h4>In Vitro Calibration Curve</h4>
+    <div style="max-width: 100%; overflow: hidden;">
+      <canvas id="calibrationChart" width="400" height="300" style="max-width: 100%; height: auto;"></canvas>
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+
+  <script>
+    /***********************
+     * Global Variables & Settings
+     ***********************/
+    let currentIndicator = "Oregon Green BAPTA-1";
+    let dataSets = {};      // Holds loaded data per indicator.
+    let currentData = null; // 3D data: [y][x][z]
+    let heatmapData = null; // 2D array computed by summing over z dimension.
+    let calibrationChart = null; // Calibration curve chart
+    const heatmapCanvas = document.getElementById('heatmapCanvas');
+    const heatmapCtx = heatmapCanvas.getContext('2d');
+    const selectionRect = document.getElementById('selectionRect');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    let isDragging = false, dragStart = null, dragEnd = null;
+
+    let timeChart = null;    // Photon decay curve plot (right)
+    let avgTimeChart = null; // Average fluorescence plot (below heatmap)
+
+    // Physical mappings
+    const realTimeRange = 1.45;   // seconds for heatmap & avg plot (X-axis)
+    const distanceRange = 5;      // microns for heatmap (Y-axis)
+    const pulseTimeRange = 12.5;  // nanoseconds for decay curve plot (X-axis)
+
+    // If file fails
+    const dummyHeight = 200, dummyWidth = 200, dummyDepth = 64;
+
+    // File paths
+    const indicatorFiles = {
+      "Oregon Green BAPTA-1": "FLIM_data/OGB1_data_8_.tif",
+      "Cal-590": "FLIM_data/Cal_590_data_8_.tif",
+      "iGluSnFR": "FLIM_data/iGluSnFR_data_8_.tif"
+    };
+
+    /***********************
+     * Loading Indicator Functions
+     ***********************/
+    function showLoading() {
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+      }
+    }
+
+    function hideLoading() {
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+    }
+
+    /***********************
+     * NTC Calculation Functions
+     ***********************/
+    function calculateNTC(t, data, maxIdx, minThreshold, tDuration) {
+      // Check if max value exceeds threshold
+      const maxData = Math.max(...data.filter(v => !isNaN(v)));
+      if (maxData <= minThreshold) {
+        return NaN;
+      }
+
+      // Replace NaN with 0
+      const cleanData = data.map(v => isNaN(v) ? 0 : v);
+
+      let maxVal, peakIdx;
+      
+      if (maxIdx > 0) {
+        // Peak position provided
+        peakIdx = maxIdx;
+        maxVal = cleanData[peakIdx];
+      } else {
+        // Find peak by interpolation (simplified version)
+        // Use first half of data to find peak
+        const endIdx = Math.ceil(t.length / 2);
+        const halfT = t.slice(0, endIdx);
+        const halfData = cleanData.slice(0, endIdx);
+        
+        // Find maximum in first half
+        maxVal = -Infinity;
+        peakIdx = 0;
+        for (let i = 0; i < halfData.length; i++) {
+          if (halfData[i] > maxVal) {
+            maxVal = halfData[i];
+            peakIdx = i;
+          }
+        }
+        
+        if (peakIdx >= halfData.length - 2) {
+          return NaN;
+        }
+      }
+
+      // Find end index: t <= t[peakIdx] + tDuration
+      const tEnd = t[peakIdx] + tDuration;
+      let endIdx = peakIdx;
+      for (let i = peakIdx; i < t.length; i++) {
+        if (t[i] <= tEnd) {
+          endIdx = i;
+        } else {
+          break;
+        }
+      }
+
+      // Normalize data by peak value
+      const normalizedData = cleanData.map(v => v / maxVal);
+
+      // Calculate mean from peak to end
+      let sum = 0;
+      let count = 0;
+      for (let i = peakIdx; i <= endIdx; i++) {
+        if (!isNaN(normalizedData[i])) {
+          sum += normalizedData[i];
+          count++;
+        }
+      }
+
+      return count > 0 ? sum / count : NaN;
+    }
+
+    function getNTCParameters() {
+      const fitT0 = parseFloat(document.getElementById('ntcFitT0').value) || 0.3;
+      const fitT1 = parseFloat(document.getElementById('ntcFitT1').value) || 9.0;
+      const bgThreshold = parseFloat(document.getElementById('ntcBgThreshold').value) || 10;
+      return { fitT0, fitT1, bgThreshold };
+    }
+
+    /***********************
+     * Ca2+ Conversion Function
+     ***********************/
+    function ntcToCalcium(ntc) {
+      // MATLAB function: @(x)128.54063*((0.06294-x)./(x-0.37057)).^(1/1.12492)
+      // Convert NTC to [Ca2+] in nM
+      
+      const numerator = 0.06294 - ntc;
+      const denominator = ntc - 0.37057;
+      
+      // Check for division by zero or negative values under the power
+      if (denominator === 0 || (numerator / denominator) < 0) {
+        return NaN;
+      }
+      
+      const ratio = numerator / denominator;
+      const calcium = 128.54063 * Math.pow(ratio, 1 / 1.12492);
+      
+      return calcium;
+    }
+
+    function calculateNTCFromSelection() {
+      if (!currentData) {
+        alert('No data loaded. Please select an indicator first.');
+        return;
+      }
+
+      // Check if there's a current selection in the decay curve
+      if (!timeChart || !timeChart.data.datasets.length === 0) {
+        alert('Please select a region on the heatmap first to display decay curve data.');
+        return;
+      }
+
+      // Get NTC parameters
+      const { fitT0, fitT1, bgThreshold } = getNTCParameters();
+
+      // Process each dataset (including overlays)
+      const results = [];
+      
+      // We need to store all selections, not just the last one
+      if (!window.allSelections) {
+        window.allSelections = [];
+      }
+      
+      // Use all stored selections that correspond to current datasets
+      const selectionsToProcess = window.allSelections.slice(0, timeChart.data.datasets.length);
+      
+      for (let datasetIdx = 0; datasetIdx < timeChart.data.datasets.length; datasetIdx++) {
+        const dataset = timeChart.data.datasets[datasetIdx];
+        const selection = selectionsToProcess[datasetIdx];
+        
+        if (!selection) continue;
+        
+        const { xIdxStart, xIdxEnd, yIdxStart, yIdxEnd } = selection;
+        
+        // Recreate the RAW decay curve (without normalization)
+        const depth = currentData[0][0].length;
+        const decayCurve = new Array(depth).fill(0);
+        let pixelCount = 0;
+        
+        for (let y = yIdxStart; y <= yIdxEnd; y++) {
+          for (let x = xIdxStart; x <= xIdxEnd; x++) {
+            pixelCount++;
+            const pixelData = currentData[y][x];
+            for (let z = 0; z < depth; z++) {
+              decayCurve[z] += pixelData[z];
+            }
+          }
+        }
+        
+        // Average across pixels
+        if (pixelCount > 0) {
+          for (let z = 0; z < depth; z++) {
+            decayCurve[z] /= pixelCount;
+          }
+        }
+
+        // Create time array in nanoseconds
+        const t = Array.from({ length: depth }, (_, i) => (i / (depth - 1)) * pulseTimeRange);
+
+        // Filter data based on fit_t0
+        const tFit = [];
+        const dataFit = [];
+        
+        for (let i = 0; i < t.length; i++) {
+          if (t[i] >= fitT0) {
+            tFit.push(t[i]);
+            dataFit.push(decayCurve[i]);
+          }
+        }
+
+        // Calculate NTC
+        const ntcValue = calculateNTC(tFit, dataFit, 0, bgThreshold, fitT1);
+        
+        // Calculate Ca2+
+        const calciumValue = ntcToCalcium(ntcValue);
+        
+        results.push({
+          datasetIdx: datasetIdx,
+          label: dataset.label,
+          color: dataset.borderColor,
+          ntc: ntcValue,
+          calcium: calciumValue
+        });
+      }
+
+      // Update chart title/subtitle with results
+      updateChartWithResults(results);
+      
+      // Update calibration curve with crosshairs
+      updateCalibrationChart(results);
+      
+      // Also update the sidebar display
+      displayResultsInSidebar(results);
+
+      console.log('NTC & Ca2+ Results:', results);
+    }
+
+    function updateChartWithResults(results) {
+      if (!timeChart) return;
+      
+      // Add text labels directly to the chart using a custom plugin
+      if (!Chart.registry.plugins.get('ntcLabels')) {
+        const ntcLabelsPlugin = {
+          id: 'ntcLabels',
+          afterDraw: (chart) => {
+            const ctx = chart.ctx;
+            const chartArea = chart.chartArea;
+            
+            // Get results from window storage
+            const storedResults = window.ntcResults || [];
+            if (storedResults.length === 0) return;
+            
+            ctx.save();
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            
+            // Position labels on the right side of the chart
+            const xPos = chartArea.right - 10;
+            let yPos = chartArea.top + 30; // Starting position
+            
+            storedResults.forEach((result, idx) => {
+              // Find the corresponding dataset
+              const dataset = chart.data.datasets[idx];
+              if (!dataset || !dataset.data || dataset.data.length === 0) return;
+              
+              let text = `${result.label}: `;
+              if (!isNaN(result.ntc)) {
+                text += `NTC=${result.ntc.toFixed(3)}`;
+                if (!isNaN(result.calcium) && result.calcium >= 0) {
+                  text += `, [Ca²⁺]=${result.calcium.toFixed(1)}nM`;
+                }
+              } else {
+                text += 'N/A';
+              }
+              
+              // Draw colored text
+              ctx.fillStyle = result.color;
+              ctx.textAlign = 'right';
+              ctx.fillText(text, xPos, yPos);
+              
+              yPos += 22; // Move down for next label
+            });
+            
+            ctx.restore();
+          }
+        };
+        
+        Chart.register(ntcLabelsPlugin);
+      }
+      
+      // Store results globally for the plugin
+      window.ntcResults = results;
+      
+      timeChart.update();
+    }
+
+    function displayResultsInSidebar(results) {
+      const ntcResultDiv = document.getElementById('ntcResult');
+      const ntcValueSpan = document.getElementById('ntcValue');
+      const calciumValueSpan = document.getElementById('calciumValue');
+      
+      if (results.length === 0) {
+        ntcResultDiv.style.display = 'none';
+        return;
+      }
+      
+      // Display the most recent (last) result in the sidebar
+      const lastResult = results[results.length - 1];
+      
+      if (!isNaN(lastResult.ntc)) {
+        ntcValueSpan.textContent = lastResult.ntc.toFixed(4);
+        
+        if (!isNaN(lastResult.calcium) && lastResult.calcium >= 0) {
+          calciumValueSpan.textContent = lastResult.calcium.toFixed(2);
+        } else {
+          calciumValueSpan.textContent = 'N/A (out of range)';
+        }
+        
+        // Update the alert color to match the trace
+        const alertDiv = ntcResultDiv.querySelector('.alert');
+        if (alertDiv) {
+          alertDiv.style.borderLeft = `4px solid ${lastResult.color}`;
+        }
+        
+        ntcResultDiv.style.display = 'block';
+      } else {
+        ntcValueSpan.textContent = 'N/A (below threshold)';
+        calciumValueSpan.textContent = 'N/A';
+        ntcResultDiv.style.display = 'block';
+      }
+    }
+
+    /******************************************
+     * NORMALIZATION UI (Placeholders)
+     ******************************************/
+    function getNormalizationMode() {
+      const radios = document.getElementsByName('normalizationMode');
+      for (const r of radios) {
+        if (r.checked) return r.value; 
+      }
+      return "arbitrary";
+    }
+    function getBaselineRange() {
+      const start = parseFloat(document.getElementById('baselineStart').value) || 0.4;
+      const end = parseFloat(document.getElementById('baselineEnd').value) || 0.6;
+      return { start, end };
+    }
+    function applyNormalization(heatmapOrData) {
+      const mode = getNormalizationMode();
+      const { start, end } = getBaselineRange();
+      console.log("Normalization mode:", mode, "F0 range:", start, "to", end);
+      // Real math omitted; returning unchanged data
+      return heatmapOrData;
+    }
+
+    /***********************
+     * Resample Array Helper
+     ***********************/
+    function resampleArray(arr, targetLength) {
+      if(arr.length === targetLength) return arr;
+      const resampled = [];
+      for(let i = 0; i < targetLength; i++){
+        const t = i / (targetLength - 1) * (arr.length - 1);
+        const idx = Math.floor(t);
+        const frac = t - idx;
+        const val = idx < arr.length - 1
+          ? (1 - frac) * arr[idx] + frac * arr[idx + 1]
+          : arr[idx];
+        resampled.push(val);
+      }
+      return resampled;
+    }
+
+    /***********************
+     * Dummy Data Generation
+     ***********************/
+    function generateDummyData() {
+      const data = [];
+      for (let y = 0; y < dummyHeight; y++) {
+        const row = [];
+        for (let x = 0; x < dummyWidth; x++) {
+          const depthArr = [];
+          for (let z = 0; z < dummyDepth; z++) {
+            const decay = Math.exp(-z / (dummyDepth / 4)) * 100;
+            const noise = Math.random() * 20;
+            depthArr.push(decay + noise);
+          }
+          row.push(depthArr);
+        }
+        data.push(row);
+      }
+      return data;
+    }
+
+    /***********************
+     * TIFF Loading & Processing
+     ***********************/
+    function loadIndicatorDataFromFile(indicatorName, filePath, callback) {
+      console.log("Loading TIFF file for", indicatorName, "from", filePath);
+      showLoading(); // Show loading indicator
+      fetch(filePath)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("File not found: " + filePath);
+          }
+          return response.arrayBuffer();
+        })
+        .then(buffer => {
+          let ifds = UTIF.decode(buffer);
+          console.log("Decoded IFDs for", indicatorName, ":", ifds);
+          if (ifds.length === 0) {
+            throw new Error("No images found in TIFF: " + filePath);
+          }
+          UTIF.decodeImages(buffer, ifds);
+          const data = processTiffData(ifds);
+          console.log("TIFF file loaded and processed for", indicatorName);
+          hideLoading(); // Hide loading indicator
+          callback(data);
+        })
+        .catch(err => {
+          console.warn("Error loading TIFF file for", indicatorName, err);
+          hideLoading(); // Hide loading indicator on error too
+          callback(null);
+        });
+    }
+
+    function processTiffData(ifds) {
+      const width = ifds[0].width;
+      const height = ifds[0].height;
+      const numPages = ifds.length;
+      const data = [];
+      for (let y = 0; y < height; y++) {
+        const row = [];
+        for (let x = 0; x < width; x++) {
+          row.push(new Array(numPages).fill(0));
+        }
+        data.push(row);
+      }
+      for (let z = 0; z < numPages; z++) {
+        const ifd = ifds[z];
+        const rgba = UTIF.toRGBA8(ifd);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = (y * width + x) * 4;
+            const value = rgba[idx];  // red channel
+            data[y][x][z] = value;
+          }
+        }
+      }
+      return data;
+    }
+
+    /***********************
+     * Heatmap Creation & Drawing
+     ***********************/
+    function computeHeatmap(data) {
+      const heatmap = [];
+      for (let y = 0; y < data.length; y++) {
+        const row = [];
+        for (let x = 0; x < data[y].length; x++) {
+          let sum = 0;
+          for (let z = 0; z < data[y][x].length; z++) {
+            sum += data[y][x][z];
+          }
+          row.push(sum);
+        }
+        heatmap.push(row);
+      }
+      return heatmap;
+    }
+    function valueToColor(val, min, max) {
+      let norm = (val - min) / (max - min);
+      norm = Math.min(Math.max(norm, 0), 1);
+      return d3.interpolateViridis(norm);
+    }
+    function drawHeatmap(heatmap) {
+      const nCols = heatmap[0].length;
+      const nRows = heatmap.length;
+      const cellWidth = heatmapCanvas.width / nCols;
+      const cellHeight = heatmapCanvas.height / nRows;
+      let minVal = Infinity, maxVal = -Infinity;
+      for (let y = 0; y < nRows; y++) {
+        for (let x = 0; x < nCols; x++) {
+          const val = heatmap[y][x];
+          if (val < minVal) minVal = val;
+          if (val > maxVal) maxVal = val;
+        }
+      }
+      heatmapCtx.clearRect(0, 0, heatmapCanvas.width, heatmapCanvas.height);
+      for (let y = 0; y < nRows; y++) {
+        for (let x = 0; x < nCols; x++) {
+          heatmapCtx.fillStyle = valueToColor(heatmap[y][x], minVal, maxVal);
+          heatmapCtx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+        }
+      }
+    }
+
+    /***********************
+     * Chart.js: Average Fluorescence Over Time
+     ***********************/
+    let targetBins = 741; // # columns
+    function initAvgChart() {
+      const canvas = document.getElementById('avgTimeChart');
+      const ctx = canvas.getContext('2d');
+      
+      // Set same width as heatmap
+      canvas.width = 741;
+      const dataPoints = []; // will fill later
+
+      avgTimeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Average Fluorescence',
+            data: dataPoints, // an array of { x, y }
+            borderColor: 'rgb(255, 99, 132)',
+            fill: false,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          layout: { padding: 0 },
+          scales: {
+            x: {
+              type: 'linear',
+              offset: false,
+              min: 0,
+              max: 1.45,
+              title: { display: true, text: 'Time (s)' }
+            },
+            y: {
+              title: { display: false, text: 'Fluorescence' },
+              ticks: {
+                mirror: true,
+                padding: 0
+              }
+            }
+          },
+          plugins: {
+            legend: { display: true }
+          }
+        }
+      });
+    }
+
+    function updateAvgChart() {
+      if (!heatmapData) return;
+      const nCols = heatmapData[0].length;
+      const nRows = heatmapData.length;
+      const avgData = [];
+      for (let j = 0; j < nCols; j++) {
+        let sum = 0;
+        for (let i = 0; i < nRows; i++) {
+          sum += heatmapData[i][j];
+        }
+        avgData.push(sum / nRows);
+      }
+      let finalData = avgData;
+      if (nCols !== targetBins) {
+        finalData = resampleArray(avgData, targetBins);
+      }
+      // Convert to { x, y } form
+      const dataPoints = finalData.map((val, i) => {
+        const t = (i / (targetBins - 1)) * realTimeRange;
+        return { x: t, y: val };
+      });
+      avgTimeChart.data.datasets[0].data = dataPoints;
+      avgTimeChart.update();
+    }
+
+    /***********************
+     * Chart.js: Photon Decay Curve
+     ***********************/
+    function initTimeChart() {
+      const ctx = document.getElementById('timeChart').getContext('2d');
+      // By default, we assume 256 slices
+      const depth = currentData ? currentData[0][0].length : 128;
+      const labels = Array.from({ length: depth }, (_, i) => ((i / (depth - 1)) * pulseTimeRange).toFixed(2));
+      timeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Photon Count',
+            data: [],
+            borderColor: 'rgb(75, 192, 192)',
+            fill: false,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 0.8,
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'Laser Pulse Time (ns)' },
+              min: 0,
+              max: 12.5,
+              ticks: { stepSize: 1 }
+            },
+            y: {
+              title: { display: true, text: 'Photon Count' },
+              type: 'logarithmic'
+            }
+          }
+        }
+      });
+    }
+
+    /***********************
+     * Calibration Curve Chart
+     ***********************/
+    function initCalibrationChart() {
+      const ctx = document.getElementById('calibrationChart').getContext('2d');
+      
+      // Generate calibration curve data from the formula
+      // [Ca2+] = 128.54063*((0.06294-NTC)./(NTC-0.37057)).^(1/1.12492)
+      const ntcValues = [];
+      const calciumValues = [];
+      
+      // Generate smooth curve from NTC 0.05 to 0.35 (reasonable range)
+      for (let ntc = 0.05; ntc <= 0.35; ntc += 0.001) {
+        const numerator = 0.06294 - ntc;
+        const denominator = ntc - 0.37057;
+        
+        if (denominator !== 0 && (numerator / denominator) > 0) {
+          const calcium = 128.54063 * Math.pow(numerator / denominator, 1 / 1.12492);
+          if (calcium > 0 && calcium < 50000) { // Reasonable range
+            ntcValues.push(ntc);
+            calciumValues.push(calcium);
+          }
+        }
+      }
+      
+      calibrationChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'Calibration Curve',
+            data: calciumValues.map((ca, idx) => ({ x: ca, y: ntcValues[idx] })),
+            borderColor: 'rgb(0, 0, 0)',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 1.3,
+          scales: {
+            x: {
+              type: 'logarithmic',
+              title: { 
+                display: true, 
+                text: '[Ca²⁺] (nM)',
+                font: { size: 14, weight: 'bold' }
+              },
+              min: 1,
+              max: 10000
+            },
+            y: {
+              title: { 
+                display: true, 
+                text: 'Normalized total count',
+                font: { size: 14, weight: 'bold' }
+              },
+              min: 0,
+              max: 0.4
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+          }
+        }
+      });
+    }
+
+    function updateCalibrationChart(results) {
+      if (!calibrationChart || !results || results.length === 0) return;
+      
+      // Remove old indicator datasets
+      calibrationChart.data.datasets = calibrationChart.data.datasets.filter(ds => ds.label === 'Calibration Curve');
+      
+      // Add crosshair lines for each result
+      results.forEach((result, idx) => {
+        if (!isNaN(result.ntc) && !isNaN(result.calcium) && result.calcium > 0) {
+          // Add a point at the calculated position
+          calibrationChart.data.datasets.push({
+            label: result.label,
+            data: [{ x: result.calcium, y: result.ntc }],
+            borderColor: result.color,
+            backgroundColor: result.color,
+            pointRadius: 8,
+            pointStyle: 'circle',
+            showLine: false
+          });
+          
+          // Add vertical line (at calcium concentration)
+          calibrationChart.data.datasets.push({
+            label: `${result.label} vertical`,
+            data: [
+              { x: result.calcium, y: 0 },
+              { x: result.calcium, y: result.ntc }
+            ],
+            borderColor: result.color,
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+          });
+          
+          // Add horizontal line (at NTC value)
+          calibrationChart.data.datasets.push({
+            label: `${result.label} horizontal`,
+            data: [
+              { x: 1, y: result.ntc },
+              { x: result.calcium, y: result.ntc }
+            ],
+            borderColor: result.color,
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 0,
+            fill: false
+          });
+        }
+      });
+      
+      calibrationChart.update();
+    }
+
+    /***********************
+     * SHIFT-CLICK Decay Logic
+     ***********************/
+    // If shift is pressed => overlay in a new red dataset
+    // else => replace dataset[0]
+    function updateTimeCurve(xStart, yStart, xEnd, yEnd, shiftPressed) {
+      const nCols = heatmapData[0].length;
+      const nRows = heatmapData.length;
+      const cellWidth = heatmapCanvas.width / nCols;
+      const cellHeight = heatmapCanvas.height / nRows;
+      
+      const threshold = 5; 
+      let yIdxStart, yIdxEnd, xIdxStart, xIdxEnd;
+      if (Math.abs(yEnd - yStart) < threshold) {
+        // Single-click row
+        const clickRow = Math.round((yStart + yEnd) / 2 / cellHeight);
+        yIdxStart = yIdxEnd = clickRow;
+        xIdxStart = 0;
+        xIdxEnd = nCols - 1;
+      } else {
+        // Drag
+        xIdxStart = Math.floor(xStart / cellWidth);
+        xIdxEnd   = Math.floor(xEnd / cellWidth);
+        yIdxStart = Math.floor(yStart / cellHeight);
+        yIdxEnd   = Math.floor(yEnd / cellHeight);
+        if (xIdxStart > xIdxEnd) [xIdxStart, xIdxEnd] = [xIdxEnd, xIdxStart];
+        if (yIdxStart > yIdxEnd) [yIdxStart, yIdxEnd] = [yIdxEnd, yIdxStart];
+      }
+      
+      // Store selection for NTC calculation
+      if (!window.allSelections) {
+        window.allSelections = [];
+      }
+      
+      if (shiftPressed) {
+        // Add to selections array for overlay
+        window.allSelections.push({ xIdxStart, xIdxEnd, yIdxStart, yIdxEnd });
+      } else {
+        // Replace with single selection
+        window.allSelections = [{ xIdxStart, xIdxEnd, yIdxStart, yIdxEnd }];
+      }
+      
+      // Also keep lastSelection for backwards compatibility
+      window.lastSelection = { xIdxStart, xIdxEnd, yIdxStart, yIdxEnd };
+      
+      const depth = currentData[0][0].length;
+      const decayCurve = new Array(depth).fill(0);
+      let pixelCount = 0;
+      for (let y = yIdxStart; y <= yIdxEnd; y++) {
+        for (let x = xIdxStart; x <= xIdxEnd; x++) {
+          pixelCount++;
+          const pixelData = currentData[y][x];
+          for (let z = 0; z < depth; z++) {
+            decayCurve[z] += pixelData[z];
+          }
+        }
+      }
+      if (pixelCount > 0) {
+        for (let z = 0; z < depth; z++) {
+          decayCurve[z] /= pixelCount;
+        }
+      }
+
+      // Normalize to [0, 1]:
+      const minVal = Math.min(...decayCurve);
+      const maxVal = Math.max(...decayCurve);
+      if (maxVal > minVal) {
+        for (let z = 0; z < decayCurve.length; z++) {
+          decayCurve[z] = (decayCurve[z] - minVal) / (maxVal - minVal);
+        }
+      }
+      
+      // SHIFT => add new dataset in red. Else => replace dataset[0]
+      if (shiftPressed) {
+        // Generate a distinct color for each overlay
+        const colors = ['red', 'orange', 'purple', 'green', 'blue', 'pink', 'brown'];
+        const colorIndex = (timeChart.data.datasets.length - 1) % colors.length;
+        const newColor = colors[colorIndex];
+        
+        timeChart.data.datasets.push({
+          label: `Region ${timeChart.data.datasets.length + 1}`,
+          data: decayCurve.slice(), // copy array if you like
+          borderColor: newColor,
+          fill: false,
+          pointRadius: 2
+        });
+      } else {
+    // 1) Clear all existing datasets
+    timeChart.data.datasets = [];
+    // 2) Insert the new single dataset as the primary
+    timeChart.data.datasets.push({
+      label: 'Region 1',
+      data: decayCurve.slice(),
+      borderColor: 'rgb(75, 192, 192)',
+      fill: false,
+      pointRadius: 2
+    });
+  }
+
+      timeChart.update();
+      
+      // Auto-calculate NTC if checkbox is checked
+      const autoCalc = document.getElementById('autoCalculateNTC');
+      if (autoCalc && autoCalc.checked) {
+        // Use setTimeout to ensure chart is fully updated before calculating
+        setTimeout(() => {
+          calculateNTCFromSelection();
+        }, 100);
+      }
+    }
+
+
+
+    /***********************
+     * Heatmap Interaction
+     ***********************/
+    function setupHeatmapInteractions() {
+      heatmapCanvas.addEventListener('mousedown', function(e) {
+        const rect = heatmapCanvas.getBoundingClientRect();
+        dragStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        isDragging = true;
+        selectionRect.style.left = dragStart.x + 'px';
+        selectionRect.style.top = dragStart.y + 'px';
+        selectionRect.style.width = '0px';
+        selectionRect.style.height = '0px';
+        selectionRect.style.display = 'block';
+      });
+      
+      heatmapCanvas.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = heatmapCanvas.getBoundingClientRect();
+        dragEnd = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const x = Math.min(dragStart.x, dragEnd.x);
+        const y = Math.min(dragStart.y, dragEnd.y);
+        const w = Math.abs(dragEnd.x - dragStart.x);
+        const h = Math.abs(dragEnd.y - dragStart.y);
+        selectionRect.style.left = x + 'px';
+        selectionRect.style.top = y + 'px';
+        selectionRect.style.width = w + 'px';
+        selectionRect.style.height = h + 'px';
+      });
+      
+      heatmapCanvas.addEventListener('mouseup', function(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        selectionRect.style.display = 'none';
+        if (dragStart && dragEnd) {
+          // Check if SHIFT is pressed
+          const shiftPressed = e.shiftKey;
+          updateTimeCurve(dragStart.x, dragStart.y, dragEnd.x, dragEnd.y, shiftPressed);
+        }
+      });
+      
+      heatmapCanvas.addEventListener('mouseleave', function() {
+        if (isDragging) {
+          isDragging = false;
+          selectionRect.style.display = 'none';
+        }
+      });
+      // TOUCH EVENTS (FOR MOBILE)
+    heatmapCanvas.addEventListener('touchstart', function (e) {
+        e.preventDefault(); // Prevents scrolling
+        const pos = getTouchPos(heatmapCanvas, e);
+        startSelection(pos.x, pos.y);
+    });
+
+    heatmapCanvas.addEventListener('touchmove', function (e) {
+        e.preventDefault(); // Prevents scrolling
+        const pos = getTouchPos(heatmapCanvas, e);
+        moveSelection(pos.x, pos.y);
+    });
+
+    heatmapCanvas.addEventListener('touchend', function () {
+        endSelection(false); // No Shift key in touch, so always `false`
+    });
+
+    heatmapCanvas.addEventListener('touchcancel', function () {
+        isDragging = false;
+        selectionRect.style.display = 'none';
+    });
+
+    }
+
+    /***********************
+     * Indicator Controls
+     ***********************/
+    function setupIndicatorControls() {
+      const links = document.querySelectorAll('#indicatorList a');
+      links.forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          links.forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+          currentIndicator = this.getAttribute('data-indicator');
+          loadIndicatorData(currentIndicator);
+        });
+      });
+    }
+
+    /***********************
+     * Update the Display
+     ***********************/
+    function loadIndicatorData(indicatorName) {
+      if (dataSets[indicatorName]) {
+        currentData = dataSets[indicatorName];
+        updateDisplay();
+      } else {
+        const filePath = indicatorFiles[indicatorName];
+        loadIndicatorDataFromFile(indicatorName, filePath, function(data) {
+          dataSets[indicatorName] = data;
+          currentData = data;
+          updateDisplay();
+        });
+      }
+    }
+
+    function updateDisplay() {
+      if (!currentData) {
+        // Clear the heatmap
+        heatmapCtx.clearRect(0, 0, heatmapCanvas.width, heatmapCanvas.height);
+        heatmapCtx.font = "20px Arial";
+        heatmapCtx.fillStyle = "red";
+        heatmapCtx.textAlign = "center";
+        heatmapCtx.fillText("File not loaded", heatmapCanvas.width / 2, heatmapCanvas.height / 2);
+
+        if (timeChart) {
+          // Clear the photon decay
+          timeChart.data.datasets[0].data = [];
+          timeChart.update();
+          // Optionally clear overlays
+          // timeChart.data.datasets.splice(1);
+        }
+        if (avgTimeChart) {
+          avgTimeChart.data.datasets[0].data = [];
+          avgTimeChart.update();
+        }
+      } else {
+        heatmapData = computeHeatmap(currentData);
+        // Apply optional normalization
+        heatmapData = applyNormalization(heatmapData);
+        // Draw the heatmap
+        drawHeatmap(heatmapData);
+        // Update average
+        if (avgTimeChart) {
+          updateAvgChart();
+        }
+
+        // Clear the main decay curve
+        if (timeChart) {
+          timeChart.data.datasets[0].data = [];
+          timeChart.data.datasets.splice(1); // remove old overlays if you want
+          timeChart.update();
+        }
+        
+      }
+    }
+
+    /***********************
+     * Initialization
+     ***********************/
+    window.onload = function() {
+      setupIndicatorControls();
+      initTimeChart();
+      initAvgChart();
+      initCalibrationChart();
+      loadIndicatorData(currentIndicator);
+      setupHeatmapInteractions();
+      
+      // Setup NTC calculation button
+      const ntcButton = document.getElementById('calculateNTC');
+      if (ntcButton) {
+        ntcButton.addEventListener('click', calculateNTCFromSelection);
+      }
+      
+      // Pre-load data for all indicators
+      Object.keys(indicatorFiles).forEach(indicator => {
+        loadIndicatorDataFromFile(indicator, indicatorFiles[indicator], function(data) {
+          dataSets[indicator] = data;
+          if (indicator === currentIndicator) {
+            currentData = data;
+            updateDisplay();
+          }
+        });
+      });
+    };
+
+    document.addEventListener("DOMContentLoaded", function() {
+    const heatmapEl = document.getElementById('heatmapCanvas');
+    const popover = new bootstrap.Popover(heatmapEl, {
+      container: 'body',
+      html: true,
+      sanitize: false
+    });
+
+    // Listen for the popover “shown” event.
+    heatmapEl.addEventListener('shown.bs.popover', () => {
+      setTimeout(() => {
+        popover.hide(); // Hide the popover after 10 seconds
+      }, 5_000);       // 10,000 ms = 10 seconds
+    });
+  });
+
+    document.addEventListener("DOMContentLoaded", function () {
+    // Enable Bootstrap popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+      return new bootstrap.Popover(popoverTriggerEl, {
+        trigger: 'hover', // Show on hover
+        placement: 'right', // Position to the right
+        container: 'body' ,// Keeps it within the viewport
+        html: true,
+        sanitize: false
+      });
+    });
+  });
+
+
+  </script>
+
+</body>
+</html>

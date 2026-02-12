@@ -56,8 +56,16 @@
   </style>
 </head>
 <body>
+<nav class="navbar navbar-light bg-white shadow-sm mb-3">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html">SignalLab</a>
+        <span class="navbar-text d-none d-md-inline">
+          Interactive experiments in cell and neural signalling
+        </span>
+      </div>
+    </nav>
 
-<div class="container">
+<div class="sim-container">
   <!-- Title and Intro -->
   <div class="row">
     <div class="col-12">
@@ -109,8 +117,8 @@
         <div class="mb-3">
           <label for="dyeSelect" class="form-label">Ca<sup>2+</sup> Indicator</label>
           <select class="form-select" id="dyeSelect">
-            <option value="none" selected>No Ca<sup>2+</sup> Indicator</option>
-            <option value="ogb50">OGB-1 (High affinity) </option>
+            <option value="none">No Ca<sup>2+</sup> Indicator</option>
+            <option value="ogb50"selected>OGB-1 (High affinity) </option>
             <option value="F4">Fluo-4 (mid affinity) </option>
             <option value="F5F">Fluo-4FF (low affinity)</option>
             <option value="GCs">GCaMP6s</option>
@@ -213,7 +221,7 @@
       </div>
     </div>
   </div>
-</div> <!-- /container -->
+</div> <!-- /sim-container -->
 
 <!-- Bootstrap JS (optional) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -641,7 +649,7 @@ resetBtn.addEventListener('click', () => {
 // INIT & MAIN LOOP
 ///////////////////////////////////////////////////////////////////////////////
 function initSimulation() {
-  setDyeParameters('none');
+  setDyeParameters('ogb50');
   computePulses(); 
   restartSweep(); 
   startSimulation(); // Automatically start simulation on page load
