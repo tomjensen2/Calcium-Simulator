@@ -36,7 +36,6 @@
 </head>
 
 <body>
-<<<<<<< HEAD
     <nav class="navbar navbar-light bg-white shadow-sm mb-3">
       <div class="container">
         <a class="navbar-brand fw-bold" href="index.html">SignalLab</a>
@@ -55,69 +54,7 @@
   <h3 class="mt-3">
     Simulation of post-synaptic Ca<sup>2+</sup> and CaM Kinase activity comparte different spike timing situations
   </h3>
-  <!-- <div class="accordion mb-3" id="eduAccordion">
-  <div class="accordion-item">
-    <h2 class="accordion-header" id="headingIntro">
-      <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIntro">
-        Coincidence detection: what you are exploring here
-      </button>
-    </h2>
-    <div id="collapseIntro" class="accordion-collapse collapse show" data-bs-parent="#eduAccordion">
-      <div class="accordion-body">
-        <p>
-          This simulation is organised into two linked mechanisms:
-          <strong>(A) Ca²⁺ generation</strong> and <strong>(B) CaMKII decoding</strong>.
-          Together they demonstrate a canonical form of synaptic coincidence detection:
-          <em>“glutamate + depolarisation”</em> produces a larger Ca²⁺ signal, which is then transformed into a biochemical state
-          that can outlast the Ca²⁺ transient.
-        </p>
-
-        <h6 class="mt-3">A) Membrane coincidence gate (Ca²⁺ generation)</h6>
-        <ul>
-          <li><strong>NMDAR-only</strong> represents glutamate-driven Ca²⁺ entry, but it is reduced by Mg²⁺ block at resting voltage.</li>
-          <li><strong>bAP-only</strong> represents brief depolarisation (e.g. backpropagating action potential) and adds its own Ca²⁺ entry.</li>
-          <li><strong>Paired</strong> explores timing: when bAP overlaps NMDAR activation, Mg²⁺ block is relieved (in this simplified model),
-              producing a larger effective NMDAR Ca²⁺ influx.</li>
-        </ul>
-
-        <h6 class="mt-3">B) Biochemical decoder (CaMKII)</h6>
-        <ul>
-          <li>Ca²⁺ binds calmodulin (CaM) and promotes binding to CaMKII.</li>
-          <li>Active/bound CaMKII can become phosphorylated, creating an <strong>activity trace</strong> that can persist after Ca²⁺ falls.</li>
-          <li>In coincidence detection terms: <strong>Ca²⁺ amplitude and timing</strong> become a longer-lived biochemical state.</li>
-        </ul>
-
-        <h6 class="mt-3">Suggested experiments</h6>
-        <ol>
-          <li><strong>Timing window:</strong> choose “Paired”, then sweep <code>bAP→NMDAR Offset</code>. Look for a peak in Ca²⁺ and/or CaMKII activation around coincidence.</li>
-          <li><strong>Buffering shapes the window:</strong> increase endogenous buffer or indicator dye: Ca²⁺ peaks shrink and the coincidence window narrows.</li>
-          <li><strong>Decoding vs encoding:</strong> Freeze the Ca²⁺ trace, then change CaMKII parameters (phosphatase/autonomy, if you expose them) and replay.
-              You are holding the “input” constant and varying the biochemical interpretation.</li>
-        </ol>
-
-        <div class="alert alert-secondary mb-0">
-          <strong>Model note:</strong> Mg²⁺ block is implemented as a coincidence gate driven by bAP timing (a proxy for voltage).
-          It captures the logic of coincidence detection, not a full biophysical voltage-dependent Mg²⁺ block equation.
-        </div>
-      </div>
-    </div>
-  </div> -->
 </div>
-=======
-<div class="container">
-  <h1 class="mt-3">
-    Ca + CaMKII with bAP / NMDAR, Mg-Block, Offset, <br>
-    <strong>and Click-to-Stimulate</strong>
-  </h1>
-
-  <p>
-    In this version, clicking (or tapping) on the <strong>top chart</strong> 
-    injects an additional pulse (bAP, NMDAR, or both) at the 
-    <strong>current simulation time</strong>. 
-    This is <em>in addition</em> to the “auto” pulses defined by 
-    <strong>Number of Pulses</strong>, <strong>Frequency</strong>, etc.
-  </p>
->>>>>>> 7cb8126c8f3c3469d90e8eb2ffe3ad0d96afd2ee
 
   <div class="row">
     <!-- Left column: Controls -->
@@ -405,20 +342,12 @@ const caChart = new Chart(caChartCtx, {
         type: 'linear',
         min: 0, 
         max: maxTime,
-<<<<<<< HEAD
         title: { display: true, text: 'Time (s)', font:{size:20}  },
-=======
-        title: { display: true, text: 'Time (s)' },
->>>>>>> 7cb8126c8f3c3469d90e8eb2ffe3ad0d96afd2ee
         grid: { display: false }
       },
       y: {
         suggestedMax: 4,
-<<<<<<< HEAD
         title: { display: true, text: 'Free Ca2+ (µM)', font:{size:20} },
-=======
-        title: { display: true, text: 'Free Ca2+ (µM)' },
->>>>>>> 7cb8126c8f3c3469d90e8eb2ffe3ad0d96afd2ee
         grid: { display: false }
       }
     },
@@ -483,11 +412,7 @@ const camk2Chart = new Chart(camk2ChartCtx, {
       y: {
         min: 0,
         max: 1,
-<<<<<<< HEAD
         title: { display: true, text: 'Fraction of total CaMKII', font:{size:20}  },
-=======
-        title: { display: true, text: 'Fraction of total CaMKII' },
->>>>>>> 7cb8126c8f3c3469d90e8eb2ffe3ad0d96afd2ee
         grid: { display: false }
       }
     },
@@ -511,11 +436,7 @@ const currentChart = new Chart(currentChartCtx, {
     responsive: true,
     scales: {
       x: { type: 'linear', min: 0, max: maxTime, title: { display: true, text: 'Time (s)' }, grid: { display: false } },
-<<<<<<< HEAD
       y: { title: { display: true, text: 'NMDA Ca2+ Influx (µM/s)', font:{size:20}  }, grid: { display: false } }
-=======
-      y: { title: { display: true, text: 'Influx (µM/s)' }, grid: { display: false } }
->>>>>>> 7cb8126c8f3c3469d90e8eb2ffe3ad0d96afd2ee
     },
     plugins: { legend: { display: true } }
   }
