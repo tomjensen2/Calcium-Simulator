@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Epicranial Stimulator – electric field simulator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+  #container { display: flex; height: 100vh; }
+  #sidebar {
+    width: 300px; min-width: 300px; background: #161b22; border-right: 1px solid #30363d;
+    padding: 16px; overflow-y: auto; z-index: 10; display: flex; flex-direction: column; gap: 12px;
+  }
+  h1 { font-size: 14px; font-weight: 600; color: #58a6ff; letter-spacing: 0.5px; }
+  h2 { font-size: 12px; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .card { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; }
+  label { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
+  input[type=range] { width: 100%; accent-color: #58a6ff; }
+  .val { font-size: 12px; color: #e6edf3; float: right; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .metric { text-align: center; }
+  .metric .num { font-size: 20px; font-weight: 700; color: #58a6ff; }
+  .metric .lbl { font-size: 10px; color: #8b949e; }
+  .metrics-row { display: flex; gap: 8px; }
+  .metrics-row .metric { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px; }
+  select { width: 100%; background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; padding: 4px; font-size: 12px; }
+  button { width: 100%; padding: 8px; border: none; border-radius: 6px; background: #238636; color: white;
+    font-size: 12px; cursor: pointer; font-weight: 600; }
+  button:hover { background: #2ea043; }
+  button.secondary { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+  button.secondary:hover { background: #30363d; }
+  #canvas-container { flex: 1; position: relative; }
+  canvas { display: block; }
+  #overlay {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(22,27,34,0.85); border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px 14px; font-size: 11px; color: #8b949e; pointer-events: none;
+  }
+  #loading {
+    position: absolute; inset: 0; background: rgba(13,17,23,0.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 100;
+  }
+  .spinner { width: 40px; height: 40px; border: 3px solid #30363d; border-top-color: #58a6ff;
+    border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #progress { font-size: 12px; color: #8b949e; }
+  .legend { display: flex; flex-direction: column; gap: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .legend-swatch { width: 16px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  #tooltip {
+    position: absolute; background: rgba(22,27,34,0.95); border: 1px solid #30363d;
+    border-radius: 6px; padding: 8px; font-size: 11px; pointer-events: none;
+    display: none; z-index: 50; min-width: 160px;
+  }
+  .depth-chart { width: 100%; height: 100px; }
+  .tab-row { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tab { flex: 1; padding: 5px; text-align: center; font-size: 11px; cursor: pointer;
+    border: 1px solid #30363d; border-radius: 4px; color: #8b949e; }
+  .tab.active { border-color: #58a6ff; color: #58a6ff; background: rgba(88,166,255,0.1); }
+  .warning { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.4);
+    border-radius: 6px; padding: 8px; font-size: 11px; color: #d29922; }
+
+  /* ── Welcome modal ───────────────────────────────────── */
+  #welcome-modal {
+    position: fixed; inset: 0; z-index: 9000;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+  }
+  #welcome-box {
+    background: #161b22; border: 1px solid #30363d; border-radius: 16px;
+    padding: 36px 40px; max-width: 520px; width: 90%;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+    animation: modalIn 0.35s cubic-bezier(.22,.68,0,1.2) both;
+  }
+  @keyframes modalIn {
+    from { opacity:0; transform: scale(0.88) translateY(20px); }
+    to   { opacity:1; transform: scale(1)    translateY(0); }
+  }
+  #welcome-box h2 {
+    font-size: 22px; font-weight: 700; color: #e6edf3;
+    text-transform: none; letter-spacing: 0; margin-bottom: 6px;
+  }
+  #welcome-box .subtitle {
+    font-size: 12px; color: #58a6ff; letter-spacing: 1.5px;
+    text-transform: uppercase; font-weight: 600; margin-bottom: 16px;
+  }
+  #welcome-box p { font-size: 13px; color: #8b949e; line-height: 1.7; margin-bottom: 12px; }
+  #welcome-box .physics-pills {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0;
+  }
+  #welcome-box .pill {
+    background: rgba(88,166,255,0.1); border: 1px solid rgba(88,166,255,0.25);
+    border-radius: 20px; padding: 4px 12px; font-size: 11px; color: #58a6ff;
+  }
+  #welcome-box .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+  #welcome-box .btn-tour {
+    flex: 1; padding: 11px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: white; font-size: 13px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  #welcome-box .btn-tour:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.5); }
+  #welcome-box .btn-skip {
+    padding: 11px 20px; border-radius: 8px;
+    border: 1px solid #30363d; background: transparent;
+    color: #8b949e; font-size: 13px; cursor: pointer; width: auto;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #welcome-box .btn-skip:hover { color: #e6edf3; border-color: #8b949e; }
+
+  /* ── Tour button in header ───────────────────────────── */
+  #tour-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 6px; border: 1px solid #30363d;
+    background: transparent; color: #8b949e; font-size: 11px;
+    cursor: pointer; width: auto; margin-top: 4px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #tour-btn:hover { color: #58a6ff; border-color: #58a6ff; }
+
+  /* ── Shepherd overrides to match dark theme ──────────── */
+  .shepherd-theme-dark .shepherd-content {
+    border-radius: 10px !important;
+    border: 1px solid #30363d !important;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6) !important;
+  }
+  .shepherd-has-title .shepherd-content .shepherd-header {
+    background: #161b22 !important; border-radius: 10px 10px 0 0 !important;
+    padding: 14px 16px 10px !important;
+  }
+  .shepherd-title {
+    font-size: 13px !important; font-weight: 700 !important;
+    color: #58a6ff !important; letter-spacing: 0.3px !important;
+  }
+  .shepherd-text {
+    font-size: 12px !important; line-height: 1.7 !important;
+    color: #8b949e !important; padding: 12px 16px !important;
+  }
+  .shepherd-text strong { color: #e6edf3 !important; }
+  .shepherd-text em { color: #58a6ff !important; font-style: normal !important; }
+  .shepherd-footer { padding: 10px 16px 14px !important; gap: 8px !important; }
+  .shepherd-button {
+    border-radius: 6px !important; font-size: 11px !important;
+    font-weight: 600 !important; padding: 6px 14px !important;
+  }
+  .shepherd-button-primary {
+    background: #1d4ed8 !important; color: white !important; border: none !important;
+  }
+  .shepherd-button-primary:hover { background: #2563eb !important; }
+  .shepherd-button-secondary {
+    background: transparent !important; color: #8b949e !important;
+    border: 1px solid #30363d !important;
+  }
+  .shepherd-button-secondary:hover { color: #e6edf3 !important; border-color: #8b949e !important; }
+  .shepherd-cancel-icon { color: #6e7681 !important; }
+  .shepherd-arrow:before { background: #161b22 !important; border-color: #30363d !important; }
+  .shepherd-element { max-width: 320px !important; }
+  .shepherd-progress {
+    font-size: 10px; color: #6e7681; margin-right: auto; align-self: center; padding-left: 4px;
+  }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/css/shepherd.css">
+</head>
+<body>
+<!-- Welcome modal -->
+<div id="welcome-modal">
+  <div id="welcome-box">
+    <div class="subtitle">⚡ Physics Simulator</div>
+    <h2>Epicranial E-Field Simulator</h2>
+    <p>
+      This tool models how electrical current from a <strong style="color:#e6edf3">7-electrode epicranial array</strong>
+      distributes through scalp, skull, CSF and cortex — targeting a bottom of suclus focal cortical dysplasia
+      (FCD).
+    </p>
+    <p>
+      The solver runs a <strong style="color:#e6edf3">quasi-static finite-difference simulation</strong>
+      (∇·σ∇V = 0) on a 64×64×36 voxel grid at 1.5 mm resolution. Results update live as you adjust controls.
+    </p>
+    <div class="physics-pills">
+      <span class="pill">Skull barrier σ = 0.01 S/m</span>
+      <span class="pill">CSF funnel σ = 1.65 S/m</span>
+      <span class="pill">6× focusing ratio</span>
+      <span class="pill">SOR solver · 600 iterations</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn-tour" onclick="closWelcome(true)">▶ Take the guided tour</button>
+      <button class="btn-skip" onclick="closWelcome(false)">Explore freely</button>
+    </div>
+  </div>
+</div>
+
+<div id="container">
+  <div id="sidebar">
+    <h1>⚡ Epicranial E-Field Simulator</h1>
+    <div style="font-size:11px; color:#8b949e; line-height:1.5;">
+      Epicranial stimulation targeting a bottom of sulcus focal cortical dysplasia.
+    </div>
+    <button id="tour-btn" onclick="startTour()">❓ Guided tour</button>
+
+    <div class="card" id="card-position">
+      <h2>Electrode Array Position</h2>
+      <div style="height:6px"></div>
+      <label>X offset (mm) <span class="val" id="xval">0</span></label>
+      <input type="range" id="ex" min="-25" max="25" value="0" step="1">
+      <label>Y offset (mm) <span class="val" id="yval">0</span></label>
+      <input type="range" id="ey" min="-25" max="25" value="0" step="1">
+      <label>Array rotation (°) <span class="val" id="rval">0</span></label>
+      <input type="range" id="er" min="0" max="60" value="0" step="5">
+      <div style="height:4px"></div>
+      <label>Electrode spacing (mm) <span class="val" id="sval">12</span></label>
+      <input type="range" id="es" min="6" max="20" value="12" step="1">
+    </div>
+
+    <div class="card" id="card-stimulation">
+      <h2>Stimulation</h2>
+      <div style="height:4px"></div>
+      <label>Current amplitude (mA) <span class="val" id="aval">1.0</span></label>
+      <input type="range" id="ea" min="0.5" max="5" value="1" step="0.1">
+      <label>Active electrode <span class="val" id="activeval">Center</span></label>
+      <input type="range" id="active" min="0" max="6" value="0" step="1">
+      <div style="height:4px"></div>
+      <label>Stimulation mode</label>
+      <select id="mode">
+        <option value="monopolar">Monopolar (1 active, ring return)</option>
+        <option value="bipolar">Bipolar (center vs opposite)</option>
+        <option value="ring">Ring (center active, all surround return)</option>
+      </select>
+      <div style="margin-top:10px; border-top:1px solid #30363d; padding-top:10px">
+        <label style="font-weight:600; color:#e6edf3; font-size:11px; text-transform:uppercase; letter-spacing:1px">Electrode Placement</label>
+        <div style="display:flex; gap:6px; margin-top:6px">
+          <button id="btnEpicranial" onclick="setPlacement('epicranial')"
+            style="flex:1; padding:7px 4px; font-size:11px; background:#1d4ed8; border:2px solid #3b82f6; border-radius:5px; color:#93c5fd; cursor:pointer; font-weight:600">
+            Epicranial
+          </button>
+          <button id="btnTranscranial" onclick="setPlacement('transcranial')"
+            style="flex:1; padding:7px 4px; font-size:11px; background:#21262d; border:1px solid #30363d; border-radius:5px; color:#8b949e; cursor:pointer; font-weight:600">
+            Transcranial
+          </button>
+        </div>
+        <div id="placement-info" style="margin-top:6px; font-size:10px; color:#6e7681; line-height:1.5">
+          <span style="color:#60a5fa">●</span> <b style="color:#8b949e">Epicranial:</b> electrode on skull surface, beneath scalp. Current bypasses skull into CSF directly.
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-view">
+      <h2>View</h2>
+      <div class="tab-row">
+        <div class="tab active" id="tab3d" onclick="setView('3d')">3D</div>
+        <div class="tab" id="tabcor" onclick="setView('coronal')">Coronal</div>
+        <div class="tab" id="tabsag" onclick="setView('sagittal')">Sagittal</div>
+        <div class="tab" id="tabax" onclick="setView('axial')">Axial</div>
+        <div class="tab" id="tabflow" onclick="setView('flow')" style="color:#f0a030;border-color:#f0a030">Flow</div>
+      </div>
+      <label>Slice position <span class="val" id="sliceval">50%</span></label>
+      <input type="range" id="slice" min="5" max="95" value="50" step="1">
+      <label>E-field threshold (% of peak) <span class="val" id="threshval">10</span>%</label>
+      <input type="range" id="thresh" min="1" max="60" value="10" step="1">
+      <div style="height:4px"></div>
+      <label>Colour scale clip (percentile) <span class="val" id="colorClipVal">99</span>th</label>
+      <input type="range" id="colorClip" min="80" max="100" value="99" step="0.5">
+      <div style="font-size:10px; color:#6e7681; margin-top:2px; line-height:1.4">
+        Lower = compress hotspot, reveal deep field detail.<br>Values above clip shown as peak colour.
+      </div>
+      <div style="height:4px"></div>
+      <label>Show layers</label>
+      <select id="showlayer">
+        <option value="all">All tissue layers</option>
+        <option value="efieldonly">E-field only</option>
+        <option value="cortex">Cortex + sulcus</option>
+      </select>
+      <div style="margin-top:8px; border-top:1px solid #30363d; padding-top:8px">
+        <label style="color:#7ee8a2; font-weight:600">3D Morphology</label>
+        <div style="display:flex; flex-direction:column; gap:4px; margin-top:4px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="show3DSulcus" checked> Sulcus walls (CSF/GM surface)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="show3DWMBound" checked> GM/WM boundary
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="show3DMRISlice" checked> MRI-like slice plane
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="show3DEfield" checked> E-field isosurface
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="show3DBox"> Bounding box
+          </label>
+        </div>
+        <div style="margin-top:5px; font-size:10px; color:#6e7681; line-height:1.4">
+          Sulcus surface = actual geometry used in solver. Rotate to see the V-shaped CSF fold. FCD sits at the fundus (red sphere).
+        </div>
+      </div>
+      <div id="flow-controls" style="display:none; margin-top:8px; border-top:1px solid #30363d; padding-top:8px">
+        <label style="color:#f0a030; font-weight:600">Flow View Options</label>
+        <label>Arrow density <span class="val" id="arrowdensval">8</span></label>
+        <input type="range" id="arrowdens" min="4" max="16" value="8" step="2">
+        <label>Arrow scale <span class="val" id="arrowscaleval">1.0</span>×</label>
+        <input type="range" id="arrowscale" min="0.3" max="3" value="1" step="0.1">
+        <label>Flow plane</label>
+        <select id="flowplane">
+          <option value="coronal">Coronal (XZ — cuts through sulcus)</option>
+          <option value="sagittal">Sagittal (YZ)</option>
+          <option value="axial">Axial (XY)</option>
+        </select>
+        <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="showMRI" checked> MRI-like background
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="showSulcusSurface" checked> Sulcus wall surface
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="showJvectors" checked> Current density vectors (J)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="showEfield" checked> E-field overlay
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="colorByDir"> Colour arrows by direction
+          </label>
+        </div>
+        <div style="margin-top:6px; font-size:10px; color:#6e7681; line-height:1.5">
+          Arrow length ∝ |J| = σ·|E|. Colour = magnitude.<br>
+          Sulcus CSF has 6× higher conductivity than GM — watch current converge into it regardless of array position.
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-metrics">
+      <h2>Target Metrics</h2>
+      <div class="metrics-row">
+        <div class="metric">
+          <div class="num" id="m-peak">—</div>
+          <div class="lbl">Peak E (V/m)</div>
+        </div>
+        <div class="metric">
+          <div class="num" id="m-target">—</div>
+          <div class="lbl">Target E (V/m)</div>
+        </div>
+        <div class="metric">
+          <div class="num" id="m-ratio">—</div>
+          <div class="lbl">Selectivity</div>
+        </div>
+      </div>
+      <div style="font-size:10px; color:#6e7681; margin-top:6px; line-height:1.4">
+        <b style="color:#8b949e">Selectivity</b> = E at FCD ÷ mean E over surrounding cortex (10mm annulus). &gt;1 means field is concentrated at target.
+      </div>
+    </div>
+
+    <div class="card" id="card-depth">
+      <h2>E-Field vs Depth</h2>
+      <canvas class="depth-chart" id="depthChart"></canvas>
+      <div style="font-size:10px; color:#8b949e; margin-top:4px;">Vertical profile under array centre · <span style="color:#58a6ff; cursor:pointer" onclick="chartLogScale=!chartLogScale;updateDepthChart()">click to toggle log/linear</span></div>
+    </div>
+
+    <div class="card legend">
+      <h2 style="margin-bottom:6px">Tissue Layers</h2>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f4c08a"></div>Scalp (σ=0.43 S/m)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#d4a574"></div>Skull (σ=0.01 S/m)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#87ceeb"></div>CSF (σ=1.65 S/m)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c8a8c8"></div>Gray matter (σ=0.276 S/m)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f5f5dc"></div>White matter (σ=0.126 S/m)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#ff6b6b; border-radius:50%"></div>FCD target (location marker only)</div>
+    </div>
+
+    <button onclick="runSolver()">🔄 Recalculate</button>
+    <button class="secondary" onclick="resetView()">↺ Reset View</button>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="mainCanvas"></canvas>
+    <div id="overlay">
+      🖱 Drag to rotate &nbsp;|&nbsp; Scroll to zoom &nbsp;|&nbsp; Right-drag to pan
+    </div>
+    <div id="tooltip"></div>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div id="progress">Initializing solver…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  EPICRANIAL E-FIELD SIMULATOR
+//  Quasi-static FEM via finite differences (SOR)
+//  Layered slab + sulcus geometry
+// ═══════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const loading = document.getElementById('loading');
+const progressEl = document.getElementById('progress');
+
+// ── Grid parameters ──────────────────────────────────────
+const NX = 64, NY = 64, NZ = 36;   // grid points — depth trimmed to ~54mm (WM+margin only)
+const DX = 1.5;                      // mm per voxel
+const W = NX*DX, H = NY*DX, D_TOT = NZ*DX;  // physical size mm
+
+// Tissue layer Z boundaries (mm from surface, z=0 is scalp top)
+const Z_SCALP   = 0;
+const Z_SKULL   = 3;
+const Z_CSF     = 6;
+const Z_CORTEX  = 8;
+const Z_WM      = 22;
+// Domain stops at NZ*DX = 54mm — only ~32mm of WM modelled, enough for return path
+
+// Sulcus parameters (hand-knob region)
+const SULCUS_CX = NX/2 * DX;  // centre of domain
+const SULCUS_CY = NY/2 * DX;
+const SULCUS_DEPTH = 12;       // mm from cortex surface
+const SULCUS_WIDTH = 8;        // mm half-width at cortex surface
+const SULCUS_SLOPE = 0.7;      // how fast it narrows
+
+// FCD target: bottom of sulcus
+const FCD_X = SULCUS_CX;
+const FCD_Y = SULCUS_CY;
+const FCD_Z = Z_CORTEX + SULCUS_DEPTH - 2;
+
+// Conductivities (S/m)
+const SIGMA = {
+  air: 1e-6,
+  scalp: 0.43,
+  skull: 0.01,
+  csf: 1.65,
+  gm: 0.276,
+  wm: 0.126,
+  fcd: 0.15
+};
+
+// State
+let sigma3D = null;
+let phi3D = null;
+let efield = null;
+let efieldX = null, efieldY = null, efieldZ = null;
+let jX = null, jY = null, jZ = null, jMag = null;
+let electrodes = [];
+let sulcusQuads = [];
+let sulcusWMQuads = [];
+let currentView = '3d';
+let solverBusy = false;
+
+// Comparison solve state
+let cmpEpiField  = null;
+let cmpSkinField = null;
+let cmpSharedMax = 1;
+
+// Camera state
+const CAM_DEFAULT = { azimuth: 45, elevation: 90, zoom: 2.3, panX: 20, panY: 40 };
+let cam = { ...CAM_DEFAULT };
+let drag = { active: false, btn: 0, lx: 0, ly: 0 };
+
+// ── Resize canvas ─────────────────────────────────────────
+function resizeCanvas() {
+  const c = document.getElementById('canvas-container');
+  canvas.width = c.clientWidth;
+  canvas.height = c.clientHeight;
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+
+// Electrode placement mode
+let placementMode = 'epicranial'; // 'epicranial' | 'transcranial'
+
+function setPlacement(mode) {
+  placementMode = mode;
+  const eBtn = document.getElementById('btnEpicranial');
+  const tBtn = document.getElementById('btnTranscranial');
+  const info = document.getElementById('placement-info');
+  if (mode === 'epicranial') {
+    eBtn.style.background = '#1d4ed8';
+    eBtn.style.border = '2px solid #3b82f6';
+    eBtn.style.color = '#93c5fd';
+    tBtn.style.background = '#21262d';
+    tBtn.style.border = '1px solid #30363d';
+    tBtn.style.color = '#8b949e';
+    info.innerHTML = '<span style="color:#60a5fa">●</span> <b style="color:#8b949e">Epicranial:</b> electrode on skull surface, beneath scalp. Current bypasses skull — enters CSF directly.';
+  } else {
+    tBtn.style.background = '#7c2d12';
+    tBtn.style.border = '2px solid #f97316';
+    tBtn.style.color = '#fed7aa';
+    eBtn.style.background = '#21262d';
+    eBtn.style.border = '1px solid #30363d';
+    eBtn.style.color = '#8b949e';
+    info.innerHTML = '<span style="color:#f97316">●</span> <b style="color:#8b949e">Transcranial:</b> electrode on scalp surface. Current must cross skull (σ=0.01 S/m) — attenuated & spatially diffused before reaching cortex.';
+  }
+  runSolver();
+}
+function buildSigma() {
+  sigma3D = new Float32Array(NX * NY * NZ);
+  for (let iz = 0; iz < NZ; iz++) {
+    const z = iz * DX;
+    for (let iy = 0; iy < NY; iy++) {
+      const yw = iy * DX;
+      for (let ix = 0; ix < NX; ix++) {
+        const xw = ix * DX;
+        sigma3D[ix + NX*(iy + NY*iz)] = getSigmaAt(xw, yw, z);
+      }
+    }
+  }
+}
+
+function getSigmaAt(x, y, z) {
+  if (z < Z_SCALP) return SIGMA.air;
+  if (z < Z_SKULL) return SIGMA.scalp;
+  if (z < Z_CSF)   return SIGMA.skull;
+  
+  // Inside CSF / cortex region: check sulcus
+  const dx = x - SULCUS_CX;
+  const dy = y - SULCUS_CY;
+  const r = Math.sqrt(dx*dx + dy*dy);
+  
+  // Sulcus is a V-shaped groove below the cortical surface
+  if (z >= Z_CSF && z < Z_CORTEX) {
+    // CSF fills sulcus opening
+    const sulcusOpenWidth = SULCUS_WIDTH;
+    if (r < sulcusOpenWidth) return SIGMA.csf;
+    return SIGMA.csf;
+  }
+  
+  if (z >= Z_CORTEX) {
+    // Sulcus walls: below cortex surface, V-shape narrows with depth
+    const depthInCortex = z - Z_CORTEX;
+    const sulcusHW = Math.max(0, SULCUS_WIDTH - depthInCortex * SULCUS_SLOPE);
+    
+    if (depthInCortex < SULCUS_DEPTH && r < sulcusHW) {
+      // Inside sulcus fold: CSF
+      return SIGMA.csf;
+    }
+    
+    // FCD is at bottom of sulcus — same conductivity as GM (not visible on MRI)
+    // Its location is marked by the target sphere only
+    if (z < Z_WM) return SIGMA.gm;
+    return SIGMA.wm;
+  }
+  return SIGMA.gm;
+}
+
+// ── Build electrode array ─────────────────────────────────
+function buildElectrodes() {
+  const cx = parseFloat(document.getElementById('ex').value) + NX/2*DX;
+  const cy = parseFloat(document.getElementById('ey').value) + NY/2*DX;
+  const spacing = parseFloat(document.getElementById('es').value);
+  const rot = parseFloat(document.getElementById('er').value) * Math.PI / 180;
+  const amplitude = parseFloat(document.getElementById('ea').value);
+  const activeIdx = parseInt(document.getElementById('active').value);
+  const mode = document.getElementById('mode').value;
+
+  // 7 electrodes: center + 6 surround (hex)
+  const positions = [{x:0, y:0}];
+  for (let i = 0; i < 6; i++) {
+    const ang = rot + i * Math.PI / 3;
+    positions.push({ x: spacing * Math.cos(ang), y: spacing * Math.sin(ang) });
+  }
+
+  let currents = new Array(7).fill(0);
+
+  if (mode === 'monopolar') {
+    currents[activeIdx] = amplitude;
+    // Return distributed over rest
+    const nReturn = 6;
+    for (let i = 0; i < 7; i++) {
+      if (i !== activeIdx) currents[i] = -amplitude / nReturn;
+    }
+  } else if (mode === 'bipolar') {
+    currents[0] = amplitude;
+    currents[3] = -amplitude; // opposite in hex
+  } else if (mode === 'ring') {
+    currents[0] = amplitude;
+    for (let i = 1; i <= 6; i++) currents[i] = -amplitude / 6;
+  }
+
+  const elecZ = placementMode === 'transcranial' ? Z_SCALP + 1.5 : Z_SKULL;
+
+  electrodes = positions.map((p, i) => ({
+    x: cx + p.x, y: cy + p.y,
+    z: elecZ,
+    current: currents[i],
+    idx: i
+  }));
+}
+
+// ── Finite-difference solver (SOR) ────────────────────────
+// Solve ∇·(σ∇V)=0 with Neumann BCs at boundaries
+// Electrode points: Dirichlet V derived from current density
+async function solveFD() {
+  const N = NX * NY * NZ;
+  phi3D = new Float32Array(N);
+  
+  // Estimate electrode impedance → voltage (simplified)
+  const totalCurrentIn = electrodes.filter(e => e.current > 0).reduce((s,e) => s+e.current, 0);
+  
+  // Mark electrode voxels and set source terms
+  const source = new Float32Array(N);
+  const isElectrode = new Uint8Array(N);
+  
+  for (const el of electrodes) {
+    if (Math.abs(el.current) < 1e-9) continue;
+    const ix = Math.round(el.x / DX);
+    const iy = Math.round(el.y / DX);
+    const iz = Math.round(el.z / DX);   // use actual electrode depth, not hardcoded Z_SKULL
+    for (let dz = 0; dz <= 1; dz++) {
+      const idx = clampIdx(ix, iy, Math.min(NZ-1, iz+dz));
+      source[idx] += el.current * 1e-3;
+      isElectrode[idx] = 1;
+    }
+  }
+
+  // SOR parameters
+  const omega = 1.7;
+  const nIter = 600;
+  const voxVol = DX*DX*DX * 1e-9; // m³
+
+  function idx(ix,iy,iz) {
+    if (ix<0||ix>=NX||iy<0||iy>=NY||iz<0||iz>=NZ) return -1;
+    return ix + NX*(iy + NY*iz);
+  }
+  function clampIdx2(ix,iy,iz) {
+    return Math.max(0,Math.min(NX-1,ix)) + NX*(Math.max(0,Math.min(NY-1,iy)) + NY*Math.max(0,Math.min(NZ-1,iz)));
+  }
+
+  function clampGet(ix,iy,iz) {
+    return phi3D[clampIdx2(ix,iy,iz)];
+  }
+
+  progressEl.textContent = 'Running SOR solver…';
+  
+  // Do iterations in chunks to not block UI
+  for (let iter = 0; iter < nIter; iter++) {
+    if (iter % 100 === 0 && iter > 0) {
+      progressEl.textContent = `SOR iteration ${iter}/${nIter}…`;
+      await sleep(0);
+    }
+    
+    for (let iz = 0; iz < NZ; iz++) {
+      for (let iy = 0; iy < NY; iy++) {
+        for (let ix = 0; ix < NX; ix++) {
+          const i0 = ix + NX*(iy + NY*iz);
+          
+          // Conductivities at half-points (harmonic mean)
+          const s0 = sigma3D[i0];
+          const sxp = harmMean(s0, sigma3D[clampIdx2(ix+1,iy,iz)]);
+          const sxm = harmMean(s0, sigma3D[clampIdx2(ix-1,iy,iz)]);
+          const syp = harmMean(s0, sigma3D[clampIdx2(ix,iy+1,iz)]);
+          const sym = harmMean(s0, sigma3D[clampIdx2(ix,iy-1,iz)]);
+          const szp = harmMean(s0, sigma3D[clampIdx2(ix,iy,iz+1)]);
+          const szm = harmMean(s0, sigma3D[clampIdx2(ix,iy,iz-1)]);
+          
+          const denom = sxp + sxm + syp + sym + szp + szm;
+          if (denom < 1e-12) continue;
+
+          const rhs = source[i0] / (voxVol * denom / (DX*1e-3));
+          
+          const phiNeigh = (
+            sxp * clampGet(ix+1,iy,iz) +
+            sxm * clampGet(ix-1,iy,iz) +
+            syp * clampGet(ix,iy+1,iz) +
+            sym * clampGet(ix,iy-1,iz) +
+            szp * clampGet(ix,iy,iz+1) +
+            szm * clampGet(ix,iy,iz-1)
+          );
+          
+          const phiNew = (phiNeigh + rhs) / denom;
+          phi3D[i0] += omega * (phiNew - phi3D[i0]);
+        }
+      }
+    }
+  }
+  
+  // Remove DC offset
+  let mean = 0;
+  phi3D.forEach(v => mean += v);
+  mean /= phi3D.length;
+  phi3D = phi3D.map(v => v - mean);
+
+  // Compute E-field magnitude |E| = |−∇V| / dx
+  efield = new Float32Array(N);
+  // Also store vector components for J arrows
+  efieldX = new Float32Array(N);
+  efieldY = new Float32Array(N);
+  efieldZ = new Float32Array(N);
+  const scale = 1000 / DX;
+  for (let iz = 1; iz < NZ-1; iz++) {
+    for (let iy = 1; iy < NY-1; iy++) {
+      for (let ix = 1; ix < NX-1; ix++) {
+        const i0 = ix + NX*(iy + NY*iz);
+        const ex = -(phi3D[idx(ix+1,iy,iz)] - phi3D[idx(ix-1,iy,iz)]) / 2 * scale;
+        const ey = -(phi3D[idx(ix,iy+1,iz)] - phi3D[idx(ix,iy-1,iz)]) / 2 * scale;
+        const ez = -(phi3D[idx(ix,iy,iz+1)] - phi3D[idx(ix,iy,iz-1)]) / 2 * scale;
+        efieldX[i0] = ex; efieldY[i0] = ey; efieldZ[i0] = ez;
+        efield[i0] = Math.sqrt(ex*ex + ey*ey + ez*ez);
+      }
+    }
+  }
+  // J = σ·E — current density vectors
+  jX = new Float32Array(N);
+  jY = new Float32Array(N);
+  jZ = new Float32Array(N);
+  jMag = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const s = sigma3D[i];
+    jX[i] = s * efieldX[i];
+    jY[i] = s * efieldY[i];
+    jZ[i] = s * efieldZ[i];
+    jMag[i] = Math.sqrt(jX[i]*jX[i] + jY[i]*jY[i] + jZ[i]*jZ[i]);
+  }
+}
+
+// ── Build sulcus surface quads ────────────────────────────
+// Walk every voxel; if it's CSF and a face-neighbour is GM/WM, emit a quad
+// on that shared face. This gives us the sulcus wall as a mesh of quads.
+function buildSulcusSurface() {
+  sulcusQuads   = [];
+  sulcusWMQuads = [];
+
+  function sig(ix,iy,iz) {
+    if (ix<0||ix>=NX||iy<0||iy>=NY||iz<0||iz>=NZ) return 0;
+    return sigma3D[ix + NX*(iy + NY*iz)];
+  }
+  function isCSF(s)  { return s >= SIGMA.csf*0.85; }
+  function isGM(s)   { return s >= SIGMA.gm*0.7 && s < SIGMA.csf*0.85; }
+  function isWM(s)   { return s < SIGMA.gm*0.7 && s > SIGMA.skull*2; }
+  function isSolid(s){ return isGM(s) || isWM(s); }
+
+  // Only look in the cortical/sulcus depth band (skip scalp/skull/open CSF sheet)
+  const izMin = Math.round(Z_CSF/DX);
+  const izMax = Math.round((Z_WM+4)/DX);
+  // Radial constraint: only near sulcus centre (avoid lateral CSF artefacts)
+  const sulcusRMax = (SULCUS_WIDTH + 10) / DX;
+
+  for (let iz = izMin; iz < Math.min(NZ-1, izMax); iz++) {
+    for (let iy = 1; iy < NY-1; iy++) {
+      for (let ix = 1; ix < NX-1; ix++) {
+        const dx = ix - NX/2, dy = iy - NY/2;
+        if (Math.sqrt(dx*dx+dy*dy) > sulcusRMax) continue;
+
+        const s0 = sig(ix,iy,iz);
+        if (!isCSF(s0)) continue;
+
+        // Check 6 faces; emit a quad where CSF meets solid tissue
+        const faces = [
+          { n:[1,0,0],  v:[[0,0,0],[0,1,0],[0,1,1],[0,0,1]], si:sig(ix+1,iy,iz) },
+          { n:[-1,0,0], v:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]], si:sig(ix-1,iy,iz) },
+          { n:[0,1,0],  v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]], si:sig(ix,iy+1,iz) },
+          { n:[0,-1,0], v:[[0,1,0],[1,1,0],[1,1,1],[0,1,1]], si:sig(ix,iy-1,iz) },
+          { n:[0,0,1],  v:[[0,0,0],[1,0,0],[1,1,0],[0,1,0]], si:sig(ix,iy,iz+1) },
+          { n:[0,0,-1], v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]], si:sig(ix,iy,iz-1) },
+        ];
+
+        for (const f of faces) {
+          if (!isSolid(f.si)) continue;
+          const quad = f.v.map(([ox,oy,oz]) => [
+            (ix+ox)*DX, (iy+oy)*DX, (iz+oz)*DX
+          ]);
+          const isWMNeighbour = isWM(f.si);
+          quad.isWM = isWMNeighbour;
+          if (isWMNeighbour) sulcusWMQuads.push(quad);
+          else sulcusQuads.push(quad);
+        }
+      }
+    }
+  }
+}
+
+function harmMean(a, b) {
+  if (a < 1e-12 || b < 1e-12) return Math.min(a, b);
+  return 2*a*b/(a+b);
+}
+
+function clampIdx(ix, iy, iz) {
+  ix = Math.max(0,Math.min(NX-1,ix));
+  iy = Math.max(0,Math.min(NY-1,iy));
+  iz = Math.max(0,Math.min(NZ-1,iz));
+  return ix + NX*(iy + NY*iz);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Main solver entry ─────────────────────────────────────
+async function runSolver() {
+  if (solverBusy) return;
+  solverBusy = true;
+  loading.style.display = 'flex';
+  progressEl.textContent = 'Building tissue model…';
+  await sleep(20);
+  buildSigma();
+  buildElectrodes();
+  await sleep(20);
+  await solveFD();
+  await sleep(20);
+  updateMetrics();
+  updateDepthChart();
+  progressEl.textContent = 'Building sulcus surface…';
+  await sleep(10);
+  buildSulcusSurface();
+  loading.style.display = 'none';
+  solverBusy = false;
+  render();
+}
+
+// ── Comparison solver: epicranial vs over-skin ────────────
+// Runs the FD solver twice with the same electrode XY positions but
+// different Z depths: Z_SKULL (epicranial) vs Z_SCALP (over-skin).
+// Results stored in cmpEpiField / cmpSkinField with a shared colour scale.
+async function runComparison() {
+  if (solverBusy) return;
+  solverBusy = true;
+  loading.style.display = 'flex';
+  document.getElementById('cmp-status').textContent = 'Running…';
+  document.getElementById('cmp-results').style.display = 'none';
+
+  buildSigma();
+  buildElectrodes(); // sets electrodes array with current UI settings
+
+  // ── Solve 1: Epicranial (electrodes at Z_SKULL) ──────
+  progressEl.textContent = 'Comparison: solving epicranial…';
+  await sleep(20);
+  // electrodes already at Z_SKULL from buildElectrodes
+  await solveFD();
+  cmpEpiField = new Float32Array(efield);   // deep copy
+
+  // ── Solve 2: Over-skin (electrodes at Z_SCALP + 1mm) ──
+  progressEl.textContent = 'Comparison: solving over-skin…';
+  await sleep(20);
+  const savedElectrodes = electrodes.map(e => ({...e}));
+  // Move electrodes to scalp surface — inject at 1.5mm depth (inside scalp, σ=0.43)
+  electrodes = electrodes.map(e => ({...e, z: Z_SCALP + 1.5}));
+  await solveFD();
+  cmpSkinField = new Float32Array(efield);
+
+  // Restore epicranial electrodes and main efield
+  electrodes = savedElectrodes;
+  efield = cmpEpiField;  // restore main view to epicranial
+
+  // Shared colourscale: percentile of the combined distribution
+  const pct = parseFloat(document.getElementById('colorClip').value);
+  const combined = new Float32Array(cmpEpiField.length * 2);
+  combined.set(cmpEpiField, 0);
+  combined.set(cmpSkinField, cmpEpiField.length);
+  const sorted = Array.from(combined).filter(v => v > 0.01).sort((a,b) => a-b);
+  const clipIdx = Math.min(sorted.length-1, Math.floor(pct/100 * sorted.length));
+  cmpSharedMax = sorted[clipIdx] || 1;
+
+  // Metrics
+  const epiE  = cmpEpiField[
+    Math.round(FCD_X/DX) + NX*(Math.round(FCD_Y/DX) + NY*Math.round(FCD_Z/DX))
+  ];
+  const skinE = cmpSkinField[
+    Math.round(FCD_X/DX) + NX*(Math.round(FCD_Y/DX) + NY*Math.round(FCD_Z/DX))
+  ];
+  const ratio = skinE > 0 ? epiE / skinE : 0;
+
+  document.getElementById('cmp-epi-target').textContent  = epiE.toFixed(2);
+  document.getElementById('cmp-skin-target').textContent = skinE.toFixed(2);
+  document.getElementById('cmp-ratio').textContent       = ratio.toFixed(1) + '×';
+  document.getElementById('cmp-results').style.display   = 'block';
+  document.getElementById('cmp-note').textContent        =
+    `Epicranial delivers ${ratio.toFixed(1)}× more E-field at the FCD than over-skin stimulation ` +
+    `at the same current (${document.getElementById('ea').value} mA). ` +
+    `The skull (σ=0.01 S/m) attenuates and diffuses the field before it reaches cortex.`;
+
+  document.getElementById('cmp-status').textContent = '✓ Done — see Compare tab';
+
+  await sleep(20);
+  buildSulcusSurface();
+  loading.style.display = 'none';
+  solverBusy = false;
+
+  // Switch to compare view automatically
+  setView('compare');
+}
+function getEfieldAt(x, y, z) {
+  const ix = Math.round(x/DX);
+  const iy = Math.round(y/DX);
+  const iz = Math.round(z/DX);
+  if (ix<0||ix>=NX||iy<0||iy>=NY||iz<0||iz>=NZ) return 0;
+  return efield[ix + NX*(iy + NY*iz)];
+}
+
+// chartLogScale toggled by clicking the chart
+let chartLogScale = true;
+
+function updateMetrics() {
+  if (!efield) return;
+
+  // Peak E anywhere in domain
+  let peak = 0;
+  efield.forEach(v => { if (v > peak) peak = v; });
+
+  // E at FCD target voxel
+  const targetE = getEfieldAt(FCD_X, FCD_Y, FCD_Z);
+
+  // Selectivity Index: E_FCD / mean(E over a 10mm-radius cortical region excluding sulcus centre)
+  // This measures how well the field is concentrated AT the target vs spread over surrounding cortex
+  let surroundSum = 0, surroundN = 0;
+  const R_SURROUND = 10; // mm radius in cortical layer
+  const iz_cortex = Math.round((Z_CORTEX + 2) / DX);
+  for (let iy = 0; iy < NY; iy++) {
+    for (let ix = 0; ix < NX; ix++) {
+      const dx = ix*DX - FCD_X, dy = iy*DX - FCD_Y;
+      const r = Math.sqrt(dx*dx + dy*dy);
+      if (r > 4 && r < R_SURROUND) {  // annular ring around FCD, within cortex depth
+        surroundSum += efield[ix + NX*(iy + NY*iz_cortex)];
+        surroundN++;
+      }
+    }
+  }
+  const surroundMean = surroundN > 0 ? surroundSum / surroundN : 1;
+  // Selectivity: ratio of FCD field to surrounding cortex field (>1 = concentrated at target)
+  const selectivity = surroundMean > 0 ? targetE / surroundMean : 0;
+
+  document.getElementById('m-peak').textContent = peak.toFixed(1);
+  document.getElementById('m-target').textContent = targetE.toFixed(1);
+  document.getElementById('m-ratio').textContent = selectivity.toFixed(2) + '×';
+
+  // Update label tooltip
+  const ratioEl = document.getElementById('m-ratio').parentElement;
+  if (ratioEl) {
+    const lblEl = ratioEl.querySelector('.lbl');
+    if (lblEl) lblEl.textContent = 'Selectivity';
+  }
+}
+
+function updateDepthChart() {
+  if (!efield) return;
+  const c = document.getElementById('depthChart');
+  const ctx2 = c.getContext('2d');
+  ctx2.clearRect(0, 0, c.width, c.height);
+
+  // Sample E-field along vertical line through ARRAY CENTRE (not grid centre)
+  // so the profile is always under the active electrode cluster
+  const arrayCx = electrodes.length ? electrodes.reduce((s,e)=>s+e.x,0)/electrodes.length : NX/2*DX;
+  const arrayCy = electrodes.length ? electrodes.reduce((s,e)=>s+e.y,0)/electrodes.length : NY/2*DX;
+  const acx = Math.min(NX-1, Math.max(0, Math.round(arrayCx/DX)));
+  const acy = Math.min(NY-1, Math.max(0, Math.round(arrayCy/DX)));
+
+  // Only plot down to Z_WM + a few mm — no need to show empty deep WM
+  const plotToZ = Z_WM + 6;
+  const plotNZ = Math.min(NZ, Math.round(plotToZ / DX));
+
+  const vals = [];
+  for (let iz = 0; iz < plotNZ; iz++) {
+    vals.push(Math.max(0.01, efield[acx + NX*(acy + NY*iz)]));
+  }
+
+  // Log scale: map log(v) → y
+  const logMin = Math.log10(Math.max(0.01, vals.reduce((a,b)=>Math.min(a,b), Infinity)));
+  const logMax = Math.log10(Math.max(...vals, 0.1));
+  const logRange = Math.max(0.1, logMax - logMin);
+
+  function toY(v) {
+    if (chartLogScale) {
+      const lv = Math.log10(Math.max(0.01, v));
+      return c.height - 4 - ((lv - logMin) / logRange) * (c.height - 12);
+    } else {
+      // Linear but clip top 20% so deep values are visible
+      const clipMax = vals[0] * 0.25; // show from 25% of surface peak downward
+      const clipped = Math.min(v, clipMax);
+      return c.height - 4 - (clipped / clipMax) * (c.height - 12);
+    }
+  }
+
+  // Background layer bands (only up to plotToZ)
+  const layers = [
+    {z0:Z_SCALP, z1:Z_SKULL, color:'rgba(244,192,138,0.35)', label:'Scalp'},
+    {z0:Z_SKULL, z1:Z_CSF,   color:'rgba(212,165,116,0.35)', label:'Skull'},
+    {z0:Z_CSF,   z1:Z_CORTEX,color:'rgba(135,206,235,0.35)', label:'CSF'},
+    {z0:Z_CORTEX,z1:Z_WM,    color:'rgba(200,168,200,0.35)', label:'GM'},
+    {z0:Z_WM,    z1:plotToZ, color:'rgba(245,245,220,0.2)',  label:'WM'},
+  ];
+  for (const l of layers) {
+    const x0 = (l.z0/plotToZ) * c.width;
+    const x1 = Math.min(c.width, (l.z1/plotToZ) * c.width);
+    ctx2.fillStyle = l.color;
+    ctx2.fillRect(x0, 0, x1-x0, c.height);
+    // Layer label at top
+    if (x1-x0 > 10) {
+      ctx2.fillStyle = 'rgba(200,200,200,0.5)';
+      ctx2.font = '7px sans-serif';
+      ctx2.textAlign = 'center';
+      ctx2.fillText(l.label, (x0+x1)/2, 8);
+    }
+  }
+
+  // FCD marker line
+  const fcdX = (FCD_Z/plotToZ) * c.width;
+  if (fcdX < c.width) {
+    ctx2.strokeStyle = 'rgba(255,100,100,0.8)';
+    ctx2.lineWidth = 1.5;
+    ctx2.setLineDash([3,3]);
+    ctx2.beginPath(); ctx2.moveTo(fcdX,0); ctx2.lineTo(fcdX,c.height); ctx2.stroke();
+    ctx2.setLineDash([]);
+    ctx2.fillStyle = '#ff8888';
+    ctx2.font = '8px sans-serif';
+    ctx2.textAlign = 'left';
+    ctx2.fillText('FCD', fcdX+2, c.height-3);
+  }
+
+  // Y-axis grid lines (log decades)
+  if (chartLogScale) {
+    ctx2.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx2.lineWidth = 1;
+    for (let decade = Math.ceil(logMin); decade <= Math.floor(logMax); decade++) {
+      const y = c.height - 4 - ((decade - logMin)/logRange)*(c.height-12);
+      ctx2.beginPath(); ctx2.moveTo(0,y); ctx2.lineTo(c.width,y); ctx2.stroke();
+      ctx2.fillStyle = 'rgba(150,150,150,0.6)';
+      ctx2.font = '7px sans-serif';
+      ctx2.textAlign = 'left';
+      ctx2.fillText(`10^${decade}`, 1, y-1);
+    }
+  }
+
+  // E-field curve with gradient fill
+  const grad = ctx2.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0, 'rgba(88,166,255,0.4)');
+  grad.addColorStop(1, 'rgba(88,166,255,0.0)');
+
+  ctx2.beginPath();
+  vals.forEach((v, i) => {
+    const x = (i/plotNZ) * c.width;
+    const y = toY(v);
+    if (i===0) ctx2.moveTo(x, y); else ctx2.lineTo(x, y);
+  });
+  // Close path for fill
+  ctx2.lineTo((plotNZ-1)/plotNZ * c.width, c.height);
+  ctx2.lineTo(0, c.height);
+  ctx2.closePath();
+  ctx2.fillStyle = grad;
+  ctx2.fill();
+
+  // Stroke the curve on top
+  ctx2.beginPath();
+  vals.forEach((v, i) => {
+    const x = (i/plotNZ) * c.width;
+    const y = toY(v);
+    if (i===0) ctx2.moveTo(x, y); else ctx2.lineTo(x, y);
+  });
+  ctx2.strokeStyle = '#58a6ff';
+  ctx2.lineWidth = 1.5;
+  ctx2.stroke();
+
+  // Mark FCD value on curve
+  const fcdIz = Math.min(plotNZ-1, Math.round(FCD_Z/DX));
+  const fcdVal = vals[fcdIz];
+  if (fcdIz < plotNZ) {
+    const fcdPx = (fcdIz/plotNZ)*c.width;
+    const fcdPy = toY(fcdVal);
+    ctx2.beginPath();
+    ctx2.arc(fcdPx, fcdPy, 3, 0, Math.PI*2);
+    ctx2.fillStyle = '#ff6b6b';
+    ctx2.fill();
+  }
+
+  // Scale label
+  ctx2.fillStyle = 'rgba(150,150,150,0.7)';
+  ctx2.font = '7px sans-serif';
+  ctx2.textAlign = 'right';
+  ctx2.fillText(chartLogScale ? 'log scale' : 'clipped linear', c.width-2, c.height-2);
+}
+
+// Toggle chart scale on click
+document.getElementById('depthChart').addEventListener('click', () => {
+  chartLogScale = !chartLogScale;
+  updateDepthChart();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  RENDERING
+// ═══════════════════════════════════════════════════════════
+
+let viewMode = '3d';
+function setView(v) {
+  viewMode = v;
+  const tabs = { '3d':'tab3d', 'coronal':'tabcor', 'sagittal':'tabsag', 'axial':'tabax', 'flow':'tabflow' };
+  Object.entries(tabs).forEach(([k,id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', k===v);
+  });
+  document.getElementById('flow-controls').style.display = v==='flow' ? 'block' : 'none';
+  render();
+}
+document.getElementById('tabcor').onclick = () => setView('coronal');
+document.getElementById('tabsag').onclick = () => setView('sagittal');
+document.getElementById('tabax').onclick = () => setView('axial');
+document.getElementById('tab3d').onclick = () => setView('3d');
+document.getElementById('tabflow').onclick = () => setView('flow');
+
+function render() {
+  if (!canvas.width) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!efield) return;
+
+  if (viewMode === '3d') render3D();
+  else if (viewMode === 'flow') renderFlow();
+  else renderSlice(viewMode);
+}
+
+// ── Colormap ──────────────────────────────────────────────
+function efieldColor(v, maxV, alpha=1) {
+  const t = Math.min(1, v / maxV);
+  // Viridis-like: dark blue → teal → green → yellow → red
+  let r, g, b;
+  if (t < 0.25) { r=0; g=t*4*200; b=128+t*4*80; }
+  else if (t < 0.5) { r=0; g=200+(t-0.25)*4*55; b=208-(t-0.25)*4*208; }
+  else if (t < 0.75) { r=(t-0.5)*4*255; g=255; b=0; }
+  else { r=255; g=255-(t-0.75)*4*255; b=0; }
+  return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${alpha})`;
+}
+
+function tissueColor(sig) {
+  if (sig >= SIGMA.csf*0.9)   return [135,206,235];
+  if (sig >= SIGMA.scalp*0.8) return [244,192,138];
+  if (sig >= SIGMA.skull*0.8) return [212,165,116];
+  if (sig >= SIGMA.gm*0.9)    return [200,168,200];
+  if (sig >= SIGMA.fcd*0.9)   return [255,107,107];
+  return [245,245,220];
+}
+
+// ── 2D slice rendering ────────────────────────────────────
+function renderSlice(mode) {
+  if (!efield || !sigma3D) return;
+  const sliceT = parseFloat(document.getElementById('slice').value)/100;
+  const thresh = parseFloat(document.getElementById('thresh').value);
+  const showLayer = document.getElementById('showlayer').value;
+
+  let sliceIx, sliceIy, sliceIz;
+  let imgW, imgH;
+  let getPixel;
+
+  const maxE = getMaxEfield();
+
+  if (mode === 'coronal') {
+    // Y = const, show XZ plane
+    sliceIy = Math.round(sliceT * (NY-1));
+    imgW = NX; imgH = NZ;
+    getPixel = (px, py) => ({
+      sig: sigma3D[px + NX*(sliceIy + NY*py)],
+      ef: efield[px + NX*(sliceIy + NY*py)],
+      ix:px, iy:sliceIy, iz:py
+    });
+  } else if (mode === 'sagittal') {
+    sliceIx = Math.round(sliceT * (NX-1));
+    imgW = NY; imgH = NZ;
+    getPixel = (px, py) => ({
+      sig: sigma3D[sliceIx + NX*(px + NY*py)],
+      ef: efield[sliceIx + NX*(px + NY*py)],
+      ix:sliceIx, iy:px, iz:py
+    });
+  } else { // axial
+    sliceIz = Math.round(sliceT * (NZ-1));
+    imgW = NX; imgH = NY;
+    getPixel = (px, py) => ({
+      sig: sigma3D[px + NX*(py + NY*sliceIz)],
+      ef: efield[px + NX*(py + NY*sliceIz)],
+      ix:px, iy:py, iz:sliceIz
+    });
+  }
+
+  const scale = Math.min(
+    (canvas.width - 60) / imgW,
+    (canvas.height - 80) / imgH
+  );
+  const offX = (canvas.width - imgW*scale) / 2;
+  const offY = (canvas.height - imgH*scale) / 2;
+
+  const imgData = ctx.createImageData(imgW, imgH);
+
+  for (let py = 0; py < imgH; py++) {
+    for (let px = 0; px < imgW; px++) {
+      const p = getPixel(px, py);
+      let r, g, b, a=255;
+
+      if (showLayer === 'efieldonly') {
+        const t = Math.min(1, p.ef / (maxE||1));
+        const col = efieldRGB(t);
+        r=col[0]; g=col[1]; b=col[2];
+        a = p.ef > thresh ? 255 : 30;
+      } else {
+        // Tissue base color
+        const tc = tissueColor(p.sig);
+        r=tc[0]; g=tc[1]; b=tc[2];
+        // Blend E-field on top
+        if (p.ef > thresh) {
+          const t = Math.min(1, p.ef / (maxE||1));
+          const ec = efieldRGB(t);
+          const blend = Math.min(0.85, t*0.9 + 0.2);
+          r = Math.round(r*(1-blend) + ec[0]*blend);
+          g = Math.round(g*(1-blend) + ec[1]*blend);
+          b = Math.round(b*(1-blend) + ec[2]*blend);
+        }
+      }
+
+      const i4 = (py*imgW + px)*4;
+      imgData.data[i4]=r; imgData.data[i4+1]=g;
+      imgData.data[i4+2]=b; imgData.data[i4+3]=a;
+    }
+  }
+
+  // Scale and draw
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = imgW; tmpCanvas.height = imgH;
+  tmpCanvas.getContext('2d').putImageData(imgData, 0, 0);
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tmpCanvas, offX, offY, imgW*scale, imgH*scale);
+  ctx.restore();
+
+  // Draw electrodes on slice
+  ctx.save();
+  for (const el of electrodes) {
+    let sliceCoord, ex, ey;
+    if (mode === 'coronal') {
+      const eiy = Math.round(el.y/DX);
+      if (Math.abs(eiy - sliceIy) > 2) continue;
+      ex = offX + (el.x/DX)*scale;
+      ey = offY + (el.z/DX)*scale;
+    } else if (mode === 'sagittal') {
+      const eix = Math.round(el.x/DX);
+      if (Math.abs(eix - sliceIx) > 2) continue;
+      ex = offX + (el.y/DX)*scale;
+      ey = offY + (el.z/DX)*scale;
+    } else {
+      const eiz = Math.round(el.z/DX);
+      if (Math.abs(eiz - sliceIz) > 3) continue;
+      ex = offX + (el.x/DX)*scale;
+      ey = offY + (el.y/DX)*scale;
+    }
+    const col = el.current > 0 ? '#ff4444' : el.current < 0 ? '#4488ff' : '#888';
+    ctx.beginPath();
+    ctx.arc(ex, ey, 7, 0, Math.PI*2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = 'white';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(el.current > 0 ? '+' : el.current < 0 ? '−' : '·', ex, ey);
+  }
+
+  // FCD marker
+  let fcx, fcy;
+  if (mode === 'coronal') { fcx = offX+(FCD_X/DX)*scale; fcy = offY+(FCD_Z/DX)*scale; }
+  else if (mode === 'sagittal') { fcx = offX+(FCD_Y/DX)*scale; fcy = offY+(FCD_Z/DX)*scale; }
+  else { fcx = offX+(FCD_X/DX)*scale; fcy = offY+(FCD_Y/DX)*scale; }
+  ctx.beginPath();
+  ctx.arc(fcx, fcy, 6, 0, Math.PI*2);
+  ctx.strokeStyle = '#ff6b6b';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4,3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  drawColorbar();
+  drawSliceLabel(mode, sliceT);
+}
+
+function drawSliceLabel(mode, t) {
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${mode.charAt(0).toUpperCase()+mode.slice(1)} slice @ ${Math.round(t*100)}%`, 12, canvas.height-12);
+}
+
+function efieldRGB(t) {
+  let r, g, b;
+  if (t < 0.25) { r=0; g=Math.round(t*4*200); b=Math.round(128+t*4*80); }
+  else if (t < 0.5) { r=0; g=Math.round(200+(t-0.25)*4*55); b=Math.round(208-(t-0.25)*4*208); }
+  else if (t < 0.75) { r=Math.round((t-0.5)*4*255); g=255; b=0; }
+  else { r=255; g=Math.round(255-(t-0.75)*4*255); b=0; }
+  return [r,g,b];
+}
+
+// Returns the Nth percentile of the efield distribution (excluding zeros)
+// Used to clip the colourscale so the electrode surface hotspot doesn't dominate
+function getEfieldPercentile(pct) {
+  if (!efield) return 1;
+  // Collect non-trivial values (skip air/scalp near-zero)
+  const vals = [];
+  for (let i = 0; i < efield.length; i++) {
+    if (efield[i] > 0.01) vals.push(efield[i]);
+  }
+  if (!vals.length) return 1;
+  vals.sort((a,b) => a-b);
+  const idx = Math.min(vals.length-1, Math.floor(pct/100 * vals.length));
+  return vals[idx] || 1;
+}
+
+function getMaxEfield() {
+  // Return the clip limit — percentile-based so electrode hotspot doesn't dominate
+  const pct = parseFloat(document.getElementById('colorClip').value);
+  return getEfieldPercentile(pct);
+}
+
+function getTrueMax() {
+  if (!efield) return 1;
+  let m=0; efield.forEach(v=>{if(v>m)m=v;}); return m||1;
+}
+
+function drawColorbar() {
+  const clipMax = getMaxEfield();
+  const trueMax = getTrueMax();
+  const bw=16, bh=140, bx=canvas.width-52, by=(canvas.height-bh)/2;
+  for (let i=0; i<bh; i++) {
+    const t = 1 - i/bh;
+    const c = efieldRGB(t);
+    ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    ctx.fillRect(bx, by+i, bw, 1);
+  }
+  ctx.strokeStyle = '#30363d';
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${clipMax.toFixed(1)}`, bx+bw+3, by+8);
+  ctx.fillText(`${(clipMax/2).toFixed(1)}`, bx+bw+3, by+bh/2+4);
+  ctx.fillText('0', bx+bw+3, by+bh);
+  ctx.fillStyle = '#58a6ff';
+  ctx.fillText('V/m', bx+bw+3, by+bh+13);
+  // Show true max so user knows what's being clipped
+  if (trueMax > clipMax * 1.05) {
+    ctx.fillStyle = 'rgba(255,180,60,0.8)';
+    ctx.font = '8px sans-serif';
+    ctx.fillText(`(peak:`, bx+bw+3, by+bh+25);
+    ctx.fillText(`${trueMax.toFixed(0)})`, bx+bw+3, by+bh+35);
+  }
+}
+
+// ── 3D Rendering: volume slice + isosurface voxels + sulcus surface ──
+function render3D() {
+  const threshPct   = parseFloat(document.getElementById('thresh').value);
+  const maxE        = getMaxEfield();
+  const threshAbs   = maxE * threshPct / 100;
+  const show3DSulcus  = document.getElementById('show3DSulcus').checked;
+  const show3DWMBound = document.getElementById('show3DWMBound').checked;
+  const show3DMRISlice= document.getElementById('show3DMRISlice').checked;
+  const show3DEfield  = document.getElementById('show3DEfield').checked;
+  const show3DBox     = document.getElementById('show3DBox') && document.getElementById('show3DBox').checked;
+
+  const cw = canvas.width, ch = canvas.height;
+  const cx = cw/2 + cam.panX;
+  const cy = ch/2 + cam.panY;
+  const az    = cam.azimuth   * Math.PI/180;
+  const elAng = cam.elevation * Math.PI/180;
+  const zoom  = cam.zoom * Math.min(cw, ch) / 130;
+  const wcx   = NX/2*DX, wcy = NY/2*DX, wcz = NZ/2*DX;
+
+  function project(x, y, z) {
+    x -= wcx; y -= wcy; z -= wcz;
+    const x2 = x*Math.cos(az) - y*Math.sin(az);
+    const y2 = x*Math.sin(az) + y*Math.cos(az);
+    const y3 = y2*Math.cos(elAng) - z*Math.sin(elAng);
+    const z3 = y2*Math.sin(elAng) + z*Math.cos(elAng);
+    return { sx: cx + x2*zoom, sy: cy - y3*zoom, depth: z3 };
+  }
+
+  // Quad centroid depth for painter sort
+  function quadDepth(q) {
+    return (project(q[0][0],q[0][1],q[0][2]).depth +
+            project(q[2][0],q[2][1],q[2][2]).depth) / 2;
+  }
+
+  // ── 1. MRI slice planes: coronal + sagittal ──────────────
+  // T1-weighted luminance
+  function mriI(sig) {
+    if (sig >= SIGMA.csf*0.9)  return 45;
+    if (sig >= SIGMA.scalp*0.7) return 130;
+    if (sig >= SIGMA.skull*0.5 && sig < SIGMA.scalp*0.7) return 20;
+    if (sig >= SIGMA.wm*0.9)   return 235;
+    if (sig >= SIGMA.gm*0.7)   return 168;
+    return 70;
+  }
+  function buildMRISlice(axis, sliceIdx) {
+    const iW = axis==='y' ? NX : NY, iH = NZ;
+    const sc2 = document.createElement('canvas');
+    sc2.width=iW; sc2.height=iH;
+    const sc2ctx=sc2.getContext('2d');
+    const id=sc2ctx.createImageData(iW,iH);
+    for (let iz=0;iz<NZ;iz++) {
+      for (let ip=0;ip<iW;ip++) {
+        const i0 = axis==='y' ? ip+NX*(sliceIdx+NY*iz) : sliceIdx+NX*(ip+NY*iz);
+        const sig=sigma3D[i0], ef=efield?efield[i0]:0;
+        let lum=mriI(sig), r=lum, g=lum, b=lum;
+        if (show3DEfield && ef>0) {
+          const t=Math.min(1,ef/maxE);
+          if (t>0.02) {
+            const ec=efieldRGB(t);
+            const blend=Math.min(0.92,t*0.9+0.1);
+            r=Math.round(lum*(1-blend)+ec[0]*blend);
+            g=Math.round(lum*(1-blend)+ec[1]*blend);
+            b=Math.round(lum*(1-blend)+ec[2]*blend);
+          }
+        }
+        const i4=(iz*iW+ip)*4;
+        id.data[i4]=r;id.data[i4+1]=g;id.data[i4+2]=b;id.data[i4+3]=210;
+      }
+    }
+    sc2ctx.putImageData(id,0,0);
+    return sc2;
+  }
+
+  if (show3DMRISlice) {
+    // Coronal slice through electrode array centre Y
+    const elecCY = electrodes.length ? Math.round(electrodes[0].y/DX) : Math.round(NY/2);
+    const sliceIy = Math.max(1, Math.min(NY-2, elecCY));
+    const corImg = buildMRISlice('y', sliceIy);
+    const p00=project(0,sliceIy*DX,0), p10=project(NX*DX,sliceIy*DX,0), p01=project(0,sliceIy*DX,NZ*DX);
+    const m11=(p10.sx-p00.sx)/NX, m12=(p10.sy-p00.sy)/NX;
+    const m21=(p01.sx-p00.sx)/NZ, m22=(p01.sy-p00.sy)/NZ;
+    ctx.save(); ctx.setTransform(m11,m12,m21,m22,p00.sx,p00.sy);
+    ctx.drawImage(corImg,0,0); ctx.restore();
+
+    // Sagittal slice through electrode array centre X
+    const elecCX = electrodes.length ? Math.round(electrodes[0].x/DX) : Math.round(NX/2);
+    const sliceIx = Math.max(1, Math.min(NX-2, elecCX));
+    const sagImg = buildMRISlice('x', sliceIx);
+    const q00=project(sliceIx*DX,0,0), q10=project(sliceIx*DX,NY*DX,0), q01=project(sliceIx*DX,0,NZ*DX);
+    const n11=(q10.sx-q00.sx)/NY, n12=(q10.sy-q00.sy)/NY;
+    const n21=(q01.sx-q00.sx)/NZ, n22=(q01.sy-q00.sy)/NZ;
+    ctx.save(); ctx.setTransform(n11,n12,n21,n22,q00.sx,q00.sy);
+    ctx.drawImage(sagImg,0,0); ctx.restore();
+
+    // Layer boundary lines on coronal face
+    ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1;
+    for (const lz of [{z:Z_SKULL,c:'rgba(180,140,90,0.7)',l:'Skull'},
+                      {z:Z_CSF,  c:'rgba(100,190,220,0.7)',l:'CSF'},
+                      {z:Z_CORTEX,c:'rgba(170,130,170,0.7)',l:'Cortex'},
+                      {z:Z_WM,   c:'rgba(220,220,190,0.6)',l:'WM'}]) {
+      if (lz.z>NZ*DX) continue;
+      const la=project(0,sliceIy*DX,lz.z), lb=project(NX*DX,sliceIy*DX,lz.z);
+      ctx.strokeStyle=lz.c;
+      ctx.beginPath(); ctx.moveTo(la.sx,la.sy); ctx.lineTo(lb.sx,lb.sy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=lz.c.replace('0.7','1').replace('0.6','1');
+      ctx.font='9px sans-serif'; ctx.textAlign='right';
+      ctx.fillText(lz.l, la.sx-3, la.sy-2);
+      ctx.setLineDash([4,3]);
+    }
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // ── 2. Collect render items: quads + sparse off-slice voxels ──
+  const items = [];
+
+  if (show3DSulcus && sulcusQuads.length) {
+    for (const q of sulcusQuads) items.push({ depth:quadDepth(q), type:'quad_sulcus', q });
+  }
+  if (show3DWMBound && sulcusWMQuads.length) {
+    for (const q of sulcusWMQuads) items.push({ depth:quadDepth(q), type:'quad_wm', q });
+  }
+
+  // Voxels: step=3, small radius — show off-slice volume only (slices cover the planes)
+  if (show3DEfield) {
+    const step = 3;
+    const elecCY2 = electrodes.length ? Math.round(electrodes[0].y/DX) : Math.round(NY/2);
+    const elecCX2 = electrodes.length ? Math.round(electrodes[0].x/DX) : Math.round(NX/2);
+    for (let iz=0; iz<NZ; iz+=step) {
+      for (let iy=0; iy<NY; iy+=step) {
+        for (let ix=0; ix<NX; ix+=step) {
+          if (Math.abs(iy - elecCY2) <= step || Math.abs(ix - elecCX2) <= step) continue;
+          const i0 = ix + NX*(iy + NY*iz);
+          const ef = efield[i0];
+          if (ef < threshAbs) continue;
+          const t = Math.min(1, ef/maxE);
+          const p = project(ix*DX, iy*DX, iz*DX);
+          const radius = Math.max(1.0, step*DX*zoom*0.13);
+          const alpha = 0.14 + 0.38*t;
+          items.push({ depth:p.depth, type:'voxel', sx:p.sx, sy:p.sy, radius, col:efieldRGB(t), alpha });
+        }
+      }
+    }
+  }
+
+  // Sort back-to-front (painter's algorithm)
+  items.sort((a,b) => a.depth - b.depth);
+
+  // ── 3. Draw all items ──────────────────────────────────
+  ctx.save();
+  for (const item of items) {
+    if (item.type === 'voxel') {
+      ctx.beginPath();
+      ctx.arc(item.sx, item.sy, item.radius, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${item.col[0]},${item.col[1]},${item.col[2]},${item.alpha.toFixed(2)})`;
+      ctx.fill();
+
+    } else if (item.type === 'quad_sulcus' || item.type === 'quad_wm') {
+      const [p0,p1,p2,p3] = item.q.map(v => project(v[0],v[1],v[2]));
+      ctx.beginPath();
+      ctx.moveTo(p0.sx, p0.sy);
+      ctx.lineTo(p1.sx, p1.sy);
+      ctx.lineTo(p2.sx, p2.sy);
+      ctx.lineTo(p3.sx, p3.sy);
+      ctx.closePath();
+      // No fill — just a faint edge so the surface reads as a wireframe
+      // against the MRI slice. Too much fill obscures the field colours.
+      if (item.type === 'quad_wm') {
+        ctx.strokeStyle = 'rgba(200,170,230,0.25)';
+      } else {
+        ctx.strokeStyle = 'rgba(120,220,240,0.30)';
+      }
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  // ── 4. Bounding box wireframe ──────────────────────────
+  if (show3DBox) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(48,54,61,0.6)';
+    ctx.lineWidth = 1;
+    const corners = [
+      [0,0,0],[NX*DX,0,0],[0,NY*DX,0],[NX*DX,NY*DX,0],
+      [0,0,NZ*DX],[NX*DX,0,NZ*DX],[0,NY*DX,NZ*DX],[NX*DX,NY*DX,NZ*DX]
+    ].map(c => project(c[0],c[1],c[2]));
+    for (const [a,b] of [[0,1],[0,2],[1,3],[2,3],[4,5],[4,6],[5,7],[6,7],[0,4],[1,5],[2,6],[3,7]]) {
+      ctx.beginPath();
+      ctx.moveTo(corners[a].sx, corners[a].sy);
+      ctx.lineTo(corners[b].sx, corners[b].sy);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ── 5. Electrodes ─────────────────────────────────────
+  ctx.save();
+  // For each electrode, draw: stem from skin surface down to skull line,
+  // a flat disc on the skin surface, and the label circle above it
+  const skinZ  = Z_SCALP;            // top of scalp (skin surface)
+  const skullZ = Z_SKULL;            // top of skull
+  for (const el of electrodes) {
+    // Surface contact point (where electrode actually touches skin/skull)
+    const pSurf = project(el.x, el.y, el.z);
+    // Point at skull top — for stem anchor
+    const pSkull = project(el.x, el.y, skullZ);
+    // Label circle positioned just above the surface in world Z
+    const labelZ = el.z - 1.5;  // 1.5mm above injection point, keeps circle above layer line
+    const pLabel = project(el.x, el.y, Math.max(0, labelZ));
+
+    const col = el.current > 0.001 ? '#ff4444' : el.current < -0.001 ? '#4488ff' : '#888888';
+    const gc  = el.current > 0 ? '255,68,68' : '68,136,255';
+
+    // Glow halo at label position
+    if (Math.abs(el.current) > 0.001) {
+      const grad = ctx.createRadialGradient(pLabel.sx,pLabel.sy,0,pLabel.sx,pLabel.sy,16);
+      grad.addColorStop(0,`rgba(${gc},0.35)`); grad.addColorStop(1,`rgba(${gc},0)`);
+      ctx.beginPath(); ctx.arc(pLabel.sx,pLabel.sy,16,0,Math.PI*2);
+      ctx.fillStyle=grad; ctx.fill();
+    }
+
+    // Stem: thin line from label circle down to skull surface
+    ctx.beginPath(); ctx.moveTo(pLabel.sx, pLabel.sy); ctx.lineTo(pSkull.sx, pSkull.sy);
+    ctx.strokeStyle = `rgba(${gc},0.5)`; ctx.lineWidth = 1.2; ctx.stroke();
+
+    // Small surface contact disc on the skin/skull surface
+    ctx.beginPath(); ctx.arc(pSurf.sx, pSurf.sy, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+    // Main electrode circle (at label position, clearly above layer lines)
+    ctx.beginPath(); ctx.arc(pLabel.sx,pLabel.sy,8,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 11px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(el.current>0.001?'+':el.current<-0.001?'−':'·', pLabel.sx, pLabel.sy);
+    ctx.fillStyle='#ccc'; ctx.font='8px sans-serif'; ctx.textBaseline='alphabetic';
+    ctx.fillText(`E${el.idx}`, pLabel.sx, pLabel.sy-11);
+  }
+
+  // ── 6. FCD target sphere ──────────────────────────────
+  const fp = project(FCD_X, FCD_Y, FCD_Z);
+  const fcdGrad = ctx.createRadialGradient(fp.sx,fp.sy,0,fp.sx,fp.sy,14);
+  fcdGrad.addColorStop(0,'rgba(255,107,107,0.7)'); fcdGrad.addColorStop(1,'rgba(255,107,107,0)');
+  ctx.beginPath(); ctx.arc(fp.sx,fp.sy,14,0,Math.PI*2);
+  ctx.fillStyle=fcdGrad; ctx.fill();
+  ctx.beginPath(); ctx.arc(fp.sx,fp.sy,6,0,Math.PI*2);
+  ctx.fillStyle='#ff6b6b'; ctx.fill();
+  ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle='#ff9999'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('FCD', fp.sx+10, fp.sy-3);
+  ctx.fillStyle='#8b949e'; ctx.font='9px sans-serif';
+  ctx.fillText('(sulcus fundus)', fp.sx+10, fp.sy+9);
+  ctx.restore();
+
+  // ── 7. Axes + colourbar + legend ──────────────────────
+  drawAxes3D(project);
+  drawColorbar3D(maxE);
+
+  // Legend
+  ctx.save();
+  const legItems = [];
+  if (show3DSulcus)   legItems.push({col:'rgba(120,220,240,0.8)', label:'Sulcus wall (CSF/GM)'});
+  if (show3DWMBound)  legItems.push({col:'rgba(200,170,230,0.8)',label:'GM/WM boundary'});
+  if (show3DEfield)   legItems.push({col:'#58a6ff',              label:'E-field isosurface'});
+  legItems.push({col:'#ff6b6b', label:'FCD target location'});
+
+  ctx.fillStyle='rgba(13,17,23,0.75)';
+  ctx.fillRect(10, ch-14-legItems.length*14, 200, legItems.length*14+6);
+  legItems.forEach((li,i) => {
+    const ly = ch - 10 - (legItems.length-1-i)*14;
+    ctx.fillStyle=li.col; ctx.fillRect(14, ly-8, 10, 8);
+    ctx.fillStyle='#8b949e'; ctx.font='9px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(li.label, 28, ly);
+  });
+
+  // Info box
+  ctx.fillStyle='rgba(13,17,23,0.75)';
+  ctx.fillRect(10, 10, 260, 34);
+  ctx.fillStyle = placementMode === 'epicranial' ? '#7ee8a2' : '#fb923c';
+  ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText(`3D — ${placementMode === 'epicranial' ? 'Epicranial' : 'Transcranial'} · Sulcus + E-field`, 16, 25);
+  ctx.fillStyle='#8b949e'; ctx.font='9px sans-serif';
+  ctx.fillText(`${sulcusQuads.length} surface quads | threshold ${threshPct}% of peak`, 16, 38);
+  ctx.restore();
+}
+
+
+function drawColorbar3D(clipMax) {
+  const trueMax = getTrueMax();
+  const bw=14, bh=140, bx=canvas.width-52, by=(canvas.height-bh)/2;
+  for (let i=0; i<bh; i++) {
+    const t = 1 - i/bh;
+    const c = efieldRGB(t);
+    ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    ctx.fillRect(bx, by+i, bw, 1);
+  }
+  ctx.strokeStyle = '#30363d'; ctx.strokeRect(bx, by, bw, bh);
+  ctx.fillStyle = '#e6edf3'; ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText(`${clipMax.toFixed(1)}`, bx+bw+3, by+8);
+  ctx.fillText(`${(clipMax*0.5).toFixed(1)}`, bx+bw+3, by+bh/2+4);
+  ctx.fillText('0', bx+bw+3, by+bh);
+  ctx.fillStyle = '#58a6ff';
+  ctx.fillText('V/m', bx+bw+3, by+bh+13);
+  if (trueMax > clipMax * 1.05) {
+    ctx.fillStyle = 'rgba(255,180,60,0.8)';
+    ctx.font = '8px sans-serif';
+    ctx.fillText(`(peak:`, bx+bw+3, by+bh+25);
+    ctx.fillText(`${trueMax.toFixed(0)})`, bx+bw+3, by+bh+35);
+  }
+}
+
+function drawAxes3D(project) {
+  const origin = {x:8*DX, y:8*DX, z:8*DX};
+  const len = 8;
+  const axes = [
+    {d:{x:len,y:0,z:0}, color:'#ff6b6b', label:'X'},
+    {d:{x:0,y:len,z:0}, color:'#6bff6b', label:'Y'},
+    {d:{x:0,y:0,z:len}, color:'#6b6bff', label:'Z(depth)'},
+  ];
+  ctx.save();
+  ctx.lineWidth = 2;
+  for (const ax of axes) {
+    const o = project(origin.x, origin.y, origin.z);
+    const e = project(origin.x+ax.d.x*DX, origin.y+ax.d.y*DX, origin.z+ax.d.z*DX);
+    ctx.strokeStyle = ax.color;
+    ctx.beginPath();
+    ctx.moveTo(o.sx, o.sy);
+    ctx.lineTo(e.sx, e.sy);
+    ctx.stroke();
+    ctx.fillStyle = ax.color;
+    ctx.font = '10px sans-serif';
+    ctx.fillText(ax.label, e.sx+3, e.sy-3);
+  }
+  ctx.restore();
+}
+
+// ── Flow View: MRI background + sulcus surface + J vectors ──
+function renderFlow() {
+  if (!efield || !jMag) return;
+
+  const plane     = document.getElementById('flowplane').value;
+  const sliceT    = parseFloat(document.getElementById('slice').value) / 100;
+  const arrowDens = parseInt(document.getElementById('arrowdens').value);
+  const arrowScl  = parseFloat(document.getElementById('arrowscale').value);
+  const showMRI   = document.getElementById('showMRI').checked;
+  const showSurf  = document.getElementById('showSulcusSurface').checked;
+  const showJ     = document.getElementById('showJvectors').checked;
+  const showEF    = document.getElementById('showEfield').checked;
+  const colorDir  = document.getElementById('colorByDir').checked;
+
+  // ── Determine slice geometry ───────────────────────────
+  let imgW, imgH, sliceIdx;
+  let getVox;   // (px,py) → {sig, ef, jx,jy,jz, jm, ix,iy,iz}
+  let elecInPlane; // filter electrodes near this slice
+
+  if (plane === 'coronal') {
+    sliceIdx = Math.round(sliceT*(NY-1));
+    imgW = NX; imgH = NZ;
+    getVox = (px,py) => {
+      const i = px + NX*(sliceIdx + NY*py);
+      return { sig:sigma3D[i], ef:efield[i], jx:jX[i], jy:jY[i], jz:jZ[i], jm:jMag[i], ix:px, iy:sliceIdx, iz:py };
+    };
+    // In-plane arrows: X and Z components
+    elecInPlane = electrodes.filter(e => Math.abs(Math.round(e.y/DX)-sliceIdx)<=2);
+  } else if (plane === 'sagittal') {
+    sliceIdx = Math.round(sliceT*(NX-1));
+    imgW = NY; imgH = NZ;
+    getVox = (px,py) => {
+      const i = sliceIdx + NX*(px + NY*py);
+      return { sig:sigma3D[i], ef:efield[i], jx:jX[i], jy:jY[i], jz:jZ[i], jm:jMag[i], ix:sliceIdx, iy:px, iz:py };
+    };
+    elecInPlane = electrodes.filter(e => Math.abs(Math.round(e.x/DX)-sliceIdx)<=2);
+  } else { // axial
+    sliceIdx = Math.round(sliceT*(NZ-1));
+    imgW = NX; imgH = NY;
+    getVox = (px,py) => {
+      const i = px + NX*(py + NY*sliceIdx);
+      return { sig:sigma3D[i], ef:efield[i], jx:jX[i], jy:jY[i], jz:jZ[i], jm:jMag[i], ix:px, iy:py, iz:sliceIdx };
+    };
+    elecInPlane = electrodes.filter(e => Math.abs(Math.round(e.z/DX)-sliceIdx)<=2);
+  }
+
+  // ── Scale canvas ───────────────────────────────────────
+  const margin = 50;
+  const scaleX = (canvas.width - margin*2) / imgW;
+  const scaleY = (canvas.height - margin*2) / imgH;
+  const sc = Math.min(scaleX, scaleY);
+  const offX = (canvas.width  - imgW*sc) / 2;
+  const offY = (canvas.height - imgH*sc) / 2;
+
+  function toSx(px) { return offX + px*sc; }
+  function toSy(py) { return offY + py*sc; }
+
+  // ── Max J for normalisation ────────────────────────────
+  let maxJ = 0;
+  for (let i=0; i<jMag.length; i++) if(jMag[i]>maxJ) maxJ=jMag[i];
+  const maxE = getMaxEfield();
+
+  // ── 1. MRI-like background ────────────────────────────
+  // T1-weighted: WM bright (250), GM mid (160), CSF dark (60), skull very dark (30)
+  const mriImg = document.createElement('canvas');
+  mriImg.width = imgW; mriImg.height = imgH;
+  const mCtx = mriImg.getContext('2d');
+  const mData = mCtx.createImageData(imgW, imgH);
+
+  function mriIntensity(sig) {
+    // Match T1 signal: WM>GM>blood/FCD≈GM, CSF dark, skull dark
+    if (sig >= SIGMA.csf*0.9)           return 50;   // CSF — dark on T1
+    if (sig >= SIGMA.scalp*0.7)         return 140;  // scalp
+    if (sig >= SIGMA.skull*0.5 && sig < SIGMA.scalp*0.7) return 25; // skull — very dark
+    if (sig >= SIGMA.wm*0.9)            return 240;  // WM — bright
+    if (sig >= SIGMA.fcd*0.85 && sig < SIGMA.gm*0.85) return 130; // FCD slightly diff
+    if (sig >= SIGMA.gm*0.7)            return 170;  // GM
+    return 80;
+  }
+
+  for (let py=0; py<imgH; py++) {
+    for (let px=0; px<imgW; px++) {
+      const v = getVox(px,py);
+      let lum = showMRI ? mriIntensity(v.sig) : 20;
+      // Subtle E-field tint on top of MRI if enabled
+      let r=lum, g=lum, b=lum;
+      if (showEF && v.ef > maxE*0.05) {
+        const t = Math.min(1, v.ef/maxE);
+        const ec = efieldRGB(t);
+        const blend = t*0.55;
+        r = Math.round(lum*(1-blend) + ec[0]*blend);
+        g = Math.round(lum*(1-blend) + ec[1]*blend);
+        b = Math.round(lum*(1-blend) + ec[2]*blend);
+      }
+      const i4 = (py*imgW+px)*4;
+      mData.data[i4]=r; mData.data[i4+1]=g; mData.data[i4+2]=b; mData.data[i4+3]=255;
+    }
+  }
+  mCtx.putImageData(mData, 0, 0);
+
+  // Draw scaled to canvas
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(mriImg, offX, offY, imgW*sc, imgH*sc);
+  ctx.restore();
+
+  // ── 2. Sulcus wall surface contour ────────────────────
+  if (showSurf) {
+    // Detect CSF/GM boundary: pixels where sig transitions from CSF to GM
+    // Draw as a bright contour line
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100,220,255,0.9)';
+    ctx.lineWidth = 1.5;
+
+    for (let py=1; py<imgH-1; py++) {
+      for (let px=1; px<imgW-1; px++) {
+        const v0 = getVox(px,py);
+        const isCsf = v0.sig >= SIGMA.csf*0.85;
+        // Check neighbours for GM
+        const neighbours = [
+          getVox(px+1,py), getVox(px-1,py),
+          getVox(px,py+1), getVox(px,py-1)
+        ];
+        const hasGM = neighbours.some(n => n.sig >= SIGMA.gm*0.7 && n.sig < SIGMA.csf*0.85);
+        if (isCsf && hasGM) {
+          // Draw a small marker at this boundary
+          const sx = toSx(px+0.5), sy = toSy(py+0.5);
+          ctx.fillStyle = 'rgba(100,220,255,0.7)';
+          ctx.fillRect(sx-sc*0.4, sy-sc*0.4, sc*0.8, sc*0.8);
+        }
+      }
+    }
+
+    // Also draw GM/WM boundary
+    for (let py=1; py<imgH-1; py++) {
+      for (let px=1; px<imgW-1; px++) {
+        const v0 = getVox(px,py);
+        const isGM = v0.sig >= SIGMA.gm*0.7 && v0.sig < SIGMA.csf*0.85;
+        const neighbours = [
+          getVox(px+1,py), getVox(px-1,py),
+          getVox(px,py+1), getVox(px,py-1)
+        ];
+        const hasWM = neighbours.some(n => n.sig < SIGMA.gm*0.7 && n.sig > SIGMA.skull*2);
+        if (isGM && hasWM) {
+          ctx.fillStyle = 'rgba(200,160,255,0.5)';
+          ctx.fillRect(toSx(px+0.5)-sc*0.3, toSy(py+0.5)-sc*0.3, sc*0.6, sc*0.6);
+        }
+      }
+    }
+    ctx.restore();
+
+    // Surface legend
+    ctx.save();
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(100,220,255,0.9)';
+    ctx.fillText('■ CSF/GM wall', offX+4, offY+imgH*sc-16);
+    ctx.fillStyle = 'rgba(200,160,255,0.8)';
+    ctx.fillText('■ GM/WM boundary', offX+4, offY+imgH*sc-4);
+    ctx.restore();
+  }
+
+  // ── 3. Current density vectors J = σE ─────────────────
+  if (showJ) {
+    const step = Math.max(1, Math.round(imgW / (arrowDens * 4)));
+    const arrowLen = sc * step * 0.85 * arrowScl;
+
+    ctx.save();
+    for (let py=step; py<imgH-step; py+=step) {
+      for (let px=step; px<imgW-step; px+=step) {
+        const v = getVox(px, py);
+        if (v.jm < maxJ*0.02) continue; // skip near-zero
+
+        // In-plane components depend on slice orientation
+        let ax, ay; // arrow direction in pixel space
+        if (plane === 'coronal') {
+          ax = v.jx; ay = v.jz;  // X and Z in screen
+        } else if (plane === 'sagittal') {
+          ax = v.jy; ay = v.jz;
+        } else {
+          ax = v.jx; ay = v.jy;
+        }
+
+        const inPlaneMag = Math.sqrt(ax*ax + ay*ay);
+        if (inPlaneMag < maxJ*0.015) continue;
+
+        const norm = inPlaneMag;
+        const dx = (ax/norm) * arrowLen * Math.min(1, v.jm/maxJ*3);
+        const dy = (ay/norm) * arrowLen * Math.min(1, v.jm/maxJ*3);
+
+        const sx = toSx(px+0.5);
+        const sy = toSy(py+0.5);
+
+        // Colour: by magnitude or direction
+        let col;
+        if (colorDir) {
+          // Direction-coded: hue from angle
+          const ang = Math.atan2(ay, ax);
+          const hue = ((ang / Math.PI * 180) + 360) % 360;
+          col = `hsla(${hue.toFixed(0)},100%,65%,0.85)`;
+        } else {
+          // Magnitude-coded: hot colourmap
+          const t = Math.min(1, v.jm / (maxJ*0.6));
+          const ec = efieldRGB(t);
+          col = `rgba(${ec[0]},${ec[1]},${ec[2]},0.82)`;
+        }
+
+        // Draw arrow
+        ctx.strokeStyle = col;
+        ctx.fillStyle = col;
+        ctx.lineWidth = 1.2;
+
+        // Shaft
+        ctx.beginPath();
+        ctx.moveTo(sx - dx*0.4, sy - dy*0.4);
+        ctx.lineTo(sx + dx*0.6, sy + dy*0.6);
+        ctx.stroke();
+
+        // Arrowhead
+        const headLen = Math.min(arrowLen*0.35, 6);
+        const angle = Math.atan2(dy, dx);
+        ctx.beginPath();
+        ctx.moveTo(sx + dx*0.6, sy + dy*0.6);
+        ctx.lineTo(
+          sx + dx*0.6 - headLen*Math.cos(angle-0.4),
+          sy + dy*0.6 - headLen*Math.sin(angle-0.4)
+        );
+        ctx.lineTo(
+          sx + dx*0.6 - headLen*Math.cos(angle+0.4),
+          sy + dy*0.6 - headLen*Math.sin(angle+0.4)
+        );
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── 4. Electrode markers ───────────────────────────────
+  ctx.save();
+  for (const el of elecInPlane) {
+    let ex, ey;
+    if (plane === 'coronal')  { ex = toSx(el.x/DX); ey = toSy(el.z/DX); }
+    else if (plane === 'sagittal') { ex = toSx(el.y/DX); ey = toSy(el.z/DX); }
+    else                      { ex = toSx(el.x/DX); ey = toSy(el.y/DX); }
+
+    const col = el.current > 0.001 ? '#ff4444' : el.current < -0.001 ? '#4488ff' : '#888';
+    if (Math.abs(el.current) > 0.001) {
+      const grd = ctx.createRadialGradient(ex,ey,0,ex,ey,14);
+      const gc = el.current>0 ? '255,68,68':'68,136,255';
+      grd.addColorStop(0,`rgba(${gc},0.35)`); grd.addColorStop(1,`rgba(${gc},0)`);
+      ctx.beginPath(); ctx.arc(ex,ey,14,0,Math.PI*2); ctx.fillStyle=grd; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(ex,ey,7,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 9px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(el.current>0.001?'+':el.current<-0.001?'−':'·', ex, ey);
+  }
+
+  // FCD target
+  let fx, fy;
+  if (plane === 'coronal')       { fx=toSx(FCD_X/DX); fy=toSy(FCD_Z/DX); }
+  else if (plane === 'sagittal') { fx=toSx(FCD_Y/DX); fy=toSy(FCD_Z/DX); }
+  else                           { fx=toSx(FCD_X/DX); fy=toSy(FCD_Y/DX); }
+
+  const fGrd = ctx.createRadialGradient(fx,fy,0,fx,fy,12);
+  fGrd.addColorStop(0,'rgba(255,107,107,0.7)'); fGrd.addColorStop(1,'rgba(255,107,107,0)');
+  ctx.beginPath(); ctx.arc(fx,fy,12,0,Math.PI*2); ctx.fillStyle=fGrd; ctx.fill();
+  ctx.beginPath(); ctx.arc(fx,fy,5,0,Math.PI*2);
+  ctx.fillStyle='#ff6b6b'; ctx.fill();
+  ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle='#ff9999'; ctx.font='10px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('FCD', fx+8, fy-3);
+  ctx.restore();
+
+  // ── 5. Tissue layer rulers ─────────────────────────────
+  if (plane === 'coronal' || plane === 'sagittal') {
+    const layerLines = [
+      {z:Z_SKULL,  label:'Skull',  col:'rgba(212,165,116,0.7)'},
+      {z:Z_CSF,    label:'CSF',    col:'rgba(135,206,235,0.7)'},
+      {z:Z_CORTEX, label:'Cortex', col:'rgba(200,168,200,0.7)'},
+      {z:Z_WM,     label:'WM',     col:'rgba(245,245,220,0.5)'},
+    ];
+    ctx.save();
+    ctx.setLineDash([5,4]);
+    ctx.lineWidth=1;
+    for (const l of layerLines) {
+      const sy = toSy(l.z/DX);
+      ctx.strokeStyle=l.col;
+      ctx.beginPath(); ctx.moveTo(offX, sy); ctx.lineTo(offX+imgW*sc, sy); ctx.stroke();
+      ctx.fillStyle=l.col; ctx.font='9px sans-serif'; ctx.textAlign='right';
+      ctx.fillText(l.label, offX-3, sy+3);
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // ── 6. Colourbar + info ────────────────────────────────
+  drawColorbar3D(maxJ);
+
+  ctx.save();
+  ctx.fillStyle='rgba(13,17,23,0.75)';
+  ctx.fillRect(offX, offY, 210, 44);
+  ctx.fillStyle='#f0a030'; ctx.font='bold 11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Flow View — Current Density J = σ·E', offX+8, offY+16);
+  ctx.fillStyle='#8b949e'; ctx.font='9px sans-serif';
+  ctx.fillText(`Plane: ${plane}  |  Max |J|: ${maxJ.toFixed(2)} A/m²`, offX+8, offY+30);
+  ctx.fillText('CSF σ=1.65 vs GM σ=0.276 S/m → 6× funnel effect', offX+8, offY+42);
+  ctx.restore();
+}
+
+// ── Compare View: side-by-side epicranial vs over-skin ────
+function renderCompare() {
+  const cw = canvas.width, ch = canvas.height;
+
+  if (!cmpEpiField || !cmpSkinField) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click "Run Comparison Solve" in the sidebar first', cw/2, ch/2 - 10);
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#6e7681';
+    ctx.fillText('Runs epicranial and over-skin solves with the same electrode position and current', cw/2, ch/2 + 14);
+    return;
+  }
+
+  const panelW = Math.floor((cw - 3) / 2);
+  const chartH = 120;
+  const panelH = ch - chartH - 50;
+  const sliceIy = Math.round(NY / 2);
+  const imgW = NX, imgH = NZ;
+  const scX = (panelW - 44) / imgW;
+  const scY = panelH / imgH;
+  const sc = Math.min(scX, scY);
+  const offY = 32 + (panelH - imgH*sc) / 2;
+  const offX_L = (panelW - imgW*sc) / 2;
+  const offX_R = panelW + 3 + (panelW - imgW*sc) / 2;
+  const clipMax = cmpSharedMax;
+
+  function mriLum(sig) {
+    if (sig >= SIGMA.csf*0.9) return 45;
+    if (sig >= SIGMA.scalp*0.7) return 135;
+    if (sig >= SIGMA.skull*0.5 && sig < SIGMA.scalp*0.7) return 22;
+    if (sig >= SIGMA.wm*0.9) return 235;
+    if (sig >= SIGMA.gm*0.7) return 168;
+    return 70;
+  }
+
+  function buildSliceImg(efArr) {
+    const c2 = document.createElement('canvas');
+    c2.width = imgW; c2.height = imgH;
+    const c2ctx = c2.getContext('2d');
+    const id = c2ctx.createImageData(imgW, imgH);
+    for (let iz = 0; iz < NZ; iz++) {
+      for (let ix = 0; ix < NX; ix++) {
+        const i0 = ix + NX*(sliceIy + NY*iz);
+        const ef = efArr[i0];
+        const sig = sigma3D[i0];
+        let lum = mriLum(sig);
+        let r=lum, g=lum, b=lum;
+        const t = Math.min(1, ef / clipMax);
+        if (t > 0.03) {
+          const ec = efieldRGB(t);
+          const blend = Math.min(0.9, t*0.85 + 0.15);
+          r = Math.round(lum*(1-blend) + ec[0]*blend);
+          g = Math.round(lum*(1-blend) + ec[1]*blend);
+          b = Math.round(lum*(1-blend) + ec[2]*blend);
+        }
+        const i4=(iz*imgW+ix)*4;
+        id.data[i4]=r; id.data[i4+1]=g; id.data[i4+2]=b; id.data[i4+3]=255;
+      }
+    }
+    c2ctx.putImageData(id,0,0);
+    return c2;
+  }
+
+  const epiImg  = buildSliceImg(cmpEpiField);
+  const skinImg = buildSliceImg(cmpSkinField);
+
+  // ── Left panel — Epicranial ───────────────────────────
+  ctx.fillStyle='rgba(37,99,235,0.12)'; ctx.fillRect(0,0,panelW,30);
+  ctx.fillStyle='#60a5fa'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('EPICRANIAL — electrode on skull surface', panelW/2, 18);
+  ctx.fillStyle='#4b5563'; ctx.font='10px sans-serif';
+  ctx.fillText('Bypasses skull · current enters CSF directly', panelW/2, 29);
+  ctx.save(); ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(epiImg, offX_L, offY, imgW*sc, imgH*sc);
+  ctx.restore();
+
+  // ── Right panel — Over-skin ───────────────────────────
+  ctx.fillStyle='rgba(219,39,119,0.12)'; ctx.fillRect(panelW+3,0,panelW,30);
+  ctx.fillStyle='#f472b6'; ctx.font='bold 13px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('OVER-SKIN — electrode on scalp surface', panelW+3+panelW/2, 18);
+  ctx.fillStyle='#4b5563'; ctx.font='10px sans-serif';
+  ctx.fillText('Current must cross skull (σ=0.01 S/m) · attenuated & diffused', panelW+3+panelW/2, 29);
+  ctx.save(); ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(skinImg, offX_R, offY, imgW*sc, imgH*sc);
+  ctx.restore();
+
+  // ── Layer lines + electrodes + FCD on both panels ─────
+  function drawLayerLines(ox) {
+    const lzz = [{z:Z_SKULL,c:'rgba(180,140,90,0.55)',l:'Skull'},
+                  {z:Z_CSF,  c:'rgba(100,190,220,0.55)',l:'CSF'},
+                  {z:Z_CORTEX,c:'rgba(160,120,160,0.55)',l:'Cortex'}];
+    ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1;
+    for (const l of lzz) {
+      const sy = offY + (l.z/DX)*sc;
+      ctx.strokeStyle=l.c;
+      ctx.beginPath(); ctx.moveTo(ox,sy); ctx.lineTo(ox+imgW*sc,sy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=l.c.replace('0.55','1');
+      ctx.font='8px sans-serif'; ctx.textAlign='right';
+      ctx.fillText(l.l, ox-2, sy+3);
+      ctx.setLineDash([4,3]);
+    }
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  function drawElecs(ox, elecZidx) {
+    ctx.save();
+    for (const el of electrodes) {
+      if (Math.abs(Math.round(el.y/DX)-sliceIy)>2) continue;
+      const ex = ox + (el.x/DX)*sc;
+      const ey = offY + elecZidx*sc;
+      const col = el.current>0.001?'#ff4444':el.current<-0.001?'#4488ff':'#888';
+      ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2);
+      ctx.fillStyle=col; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawFCD(ox) {
+    const fx=ox+(FCD_X/DX)*sc, fy=offY+(FCD_Z/DX)*sc;
+    ctx.save();
+    const g=ctx.createRadialGradient(fx,fy,0,fx,fy,9);
+    g.addColorStop(0,'rgba(255,107,107,0.7)'); g.addColorStop(1,'rgba(255,107,107,0)');
+    ctx.beginPath(); ctx.arc(fx,fy,9,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    ctx.beginPath(); ctx.arc(fx,fy,4,0,Math.PI*2);
+    ctx.fillStyle='#ff6b6b'; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke();
+    ctx.restore();
+  }
+
+  drawLayerLines(offX_L); drawElecs(offX_L, Z_SKULL/DX);          drawFCD(offX_L);
+  drawLayerLines(offX_R); drawElecs(offX_R, (Z_SCALP+1.5)/DX);   drawFCD(offX_R);
+
+  // ── Divider ───────────────────────────────────────────
+  ctx.fillStyle='#30363d'; ctx.fillRect(panelW,0,3,ch);
+
+  // ── Shared colourbar ──────────────────────────────────
+  const cbH=140, cbW=14, cbX=panelW-cbW/2-1, cbY=offY+(imgH*sc-cbH)/2;
+  for (let i=0;i<cbH;i++) {
+    const t=1-i/cbH; const c=efieldRGB(t);
+    ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`; ctx.fillRect(cbX,cbY+i,cbW,1);
+  }
+  ctx.strokeStyle='#555'; ctx.strokeRect(cbX,cbY,cbW,cbH);
+  ctx.fillStyle='#e6edf3'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+  ctx.fillText(`${clipMax.toFixed(1)}`, cbX+cbW/2, cbY-3);
+  ctx.fillText('0 V/m', cbX+cbW/2, cbY+cbH+10);
+  ctx.fillStyle='rgba(255,180,60,0.9)'; ctx.font='8px sans-serif';
+  ctx.fillText('shared', cbX+cbW/2, cbY+cbH+20);
+  ctx.fillText('scale', cbX+cbW/2, cbY+cbH+29);
+
+  // ── Depth chart ───────────────────────────────────────
+  const chartY = ch - chartH + 4;
+  const chartW = cw - 80;
+  const chartX = 44;
+  const bH = chartH - 30;
+
+  ctx.fillStyle='rgba(13,17,23,0.92)'; ctx.fillRect(0,chartY-12,cw,chartH+12);
+  ctx.strokeStyle='#21262d'; ctx.lineWidth=1; ctx.strokeRect(chartX,chartY,chartW,bH);
+
+  ctx.fillStyle='#e6edf3'; ctx.font='bold 10px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('E-field vs depth — central profile (log scale)', chartX, chartY-3);
+
+  const acx=Math.round(NX/2), acy=Math.round(NY/2);
+  const plotNZ=Math.min(NZ,Math.round((Z_WM+6)/DX));
+  const epiVals=[], skinVals=[];
+  for (let iz=0;iz<plotNZ;iz++) {
+    const i0=acx+NX*(acy+NY*iz);
+    epiVals.push(Math.max(0.01,cmpEpiField[i0]));
+    skinVals.push(Math.max(0.01,cmpSkinField[i0]));
+  }
+  const allMax=Math.max(...epiVals,...skinVals,0.1);
+  const lMin=Math.log10(0.01), lMax=Math.log10(allMax), lR=lMax-lMin||1;
+  const toY2 = v => chartY+bH-((Math.log10(Math.max(0.01,v))-lMin)/lR)*bH;
+  const toX2 = iz => chartX+(iz/plotNZ)*chartW;
+
+  // Layer bands on chart
+  [{z0:0,z1:Z_SKULL/DX,c:'rgba(244,192,138,0.12)',l:'Scalp'},
+   {z0:Z_SKULL/DX,z1:Z_CSF/DX,c:'rgba(212,165,116,0.12)',l:'Skull'},
+   {z0:Z_CSF/DX,z1:Z_CORTEX/DX,c:'rgba(135,206,235,0.12)',l:'CSF'},
+   {z0:Z_CORTEX/DX,z1:plotNZ,c:'rgba(200,168,200,0.12)',l:'GM/WM'}
+  ].forEach(b => {
+    ctx.fillStyle=b.c; ctx.fillRect(toX2(b.z0),chartY,toX2(b.z1)-toX2(b.z0),bH);
+    ctx.fillStyle='rgba(180,180,180,0.35)'; ctx.font='8px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(b.l,(toX2(b.z0)+toX2(b.z1))/2,chartY+9);
+  });
+
+  // FCD line
+  const fX2=toX2(Math.round(FCD_Z/DX));
+  ctx.strokeStyle='rgba(255,100,100,0.5)'; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(fX2,chartY); ctx.lineTo(fX2,chartY+bH); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle='#ff8888'; ctx.font='8px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('FCD',fX2+2,chartY+bH-2);
+
+  // Curves
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  epiVals.forEach((v,i)=>{ const x=toX2(i),y=toY2(v); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle='#60a5fa'; ctx.stroke();
+
+  ctx.beginPath();
+  skinVals.forEach((v,i)=>{ const x=toX2(i),y=toY2(v); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+  ctx.strokeStyle='#f472b6'; ctx.stroke();
+
+  // Shaded area between curves showing the gain
+  ctx.beginPath();
+  epiVals.forEach((v,i)=>{const x=toX2(i),y=toY2(v); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+  for(let i=plotNZ-1;i>=0;i--){ ctx.lineTo(toX2(i),toY2(skinVals[i])); }
+  ctx.closePath();
+  ctx.fillStyle='rgba(96,165,250,0.08)'; ctx.fill();
+
+  // Legend
+  ctx.fillStyle='#60a5fa'; ctx.fillRect(chartX+4,chartY+bH+6,18,3);
+  ctx.fillStyle='#e6edf3'; ctx.font='10px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('Epicranial',chartX+26,chartY+bH+12);
+  ctx.fillStyle='#f472b6'; ctx.fillRect(chartX+100,chartY+bH+6,18,3);
+  ctx.fillText('Over-skin',chartX+122,chartY+bH+12);
+  ctx.fillStyle='rgba(96,165,250,0.4)'; ctx.fillRect(chartX+195,chartY+bH+4,18,8);
+  ctx.fillStyle='#6e7681';
+  ctx.fillText('gain region',chartX+217,chartY+bH+12);
+}
+
+canvas.addEventListener('mousedown', e => {
+  drag = { active: true, btn: e.button, lx: e.clientX, ly: e.clientY };
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drag.active) return;
+  const dx = e.clientX - drag.lx;
+  const dy = e.clientY - drag.ly;
+  if (drag.btn === 0) {
+    cam.azimuth += dx * 0.5;
+    cam.elevation += dy * 0.3;
+    cam.elevation = Math.max(-89, Math.min(89, cam.elevation));
+  } else {
+    cam.panX += dx;
+    cam.panY += dy;
+  }
+  drag.lx = e.clientX; drag.ly = e.clientY;
+  if (viewMode === '3d') render();
+});
+canvas.addEventListener('mouseup', () => drag.active = false);
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.zoom *= e.deltaY > 0 ? 0.92 : 1.09;
+  cam.zoom = Math.max(0.3, Math.min(5, cam.zoom));
+  if (viewMode === '3d') render();
+}, { passive: false });
+
+function resetView() {
+  cam = { ...CAM_DEFAULT };
+  render();
+}
+
+// ── UI bindings ───────────────────────────────────────────
+function bindSlider(id, displayId, suffix='') {
+  const el = document.getElementById(id);
+  const disp = document.getElementById(displayId);
+  el.addEventListener('input', () => {
+    disp.textContent = el.value + suffix;
+    render();
+  });
+}
+bindSlider('ex','xval','mm');
+bindSlider('ey','yval','mm');
+bindSlider('er','rval','°');
+bindSlider('es','sval','mm');
+bindSlider('ea','aval','mA');
+bindSlider('slice','sliceval','%');
+bindSlider('thresh','threshval','');
+bindSlider('colorClip','colorClipVal','');
+
+const activeEl = document.getElementById('active');
+const activeNames = ['Center','E1','E2','E3','E4','E5','E6'];
+activeEl.addEventListener('input', () => {
+  document.getElementById('activeval').textContent = activeNames[activeEl.value];
+});
+
+document.getElementById('mode').addEventListener('change', render);
+['show3DSulcus','show3DWMBound','show3DMRISlice','show3DEfield','show3DBox'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', render);
+});
+bindSlider('arrowscale','arrowscaleval','×');
+['arrowdens','arrowscale','flowplane','showMRI','showSulcusSurface','showJvectors','showEfield','colorByDir'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', render);
+  if (el) el.addEventListener('input', render);
+});
+document.getElementById('showlayer').addEventListener('change', render);
+document.getElementById('slice').addEventListener('input', render);
+document.getElementById('colorClip').addEventListener('input', render);
+
+// Trigger recalculate on key params change
+['ex','ey','er','es','ea','active','mode'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (!solverBusy) runSolver();
+  });
+});
+
+// ── Init ──────────────────────────────────────────────────
+resizeCanvas();
+setTimeout(() => runSolver(), 100);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/js/shepherd.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════
+//  GUIDED TOUR — Shepherd.js
+// ══════════════════════════════════════════════════════════
+
+function closWelcome(startTourAfter) {
+  const modal = document.getElementById('welcome-modal');
+  modal.style.opacity = '0';
+  modal.style.transition = 'opacity 0.25s';
+  setTimeout(() => { modal.style.display = 'none'; }, 250);
+  if (startTourAfter) setTimeout(startTour, 300);
+}
+
+// Close modal if user clicks the backdrop
+document.getElementById('welcome-modal').addEventListener('click', function(e) {
+  if (e.target === this) closWelcome(false);
+});
+
+function makeTour() {
+  const tour = new Shepherd.Tour({
+    useModalOverlay: true,
+    defaultStepOptions: {
+      theme: 'dark',
+      cancelIcon: { enabled: true },
+      scrollTo: { behavior: 'smooth', block: 'center' },
+      modalOverlayOpeningPadding: 6,
+      modalOverlayOpeningRadius: 6,
+    }
+  });
+
+  const total = 9;
+
+  function progress(n) {
+    return `<span class="shepherd-progress">Step ${n} of ${total}</span>`;
+  }
+
+  function buttons(n) {
+    const btns = [];
+    if (n > 1) btns.push({ text: '← Back', classes: 'shepherd-button-secondary', action: () => tour.back() });
+    btns.push({ text: n < total ? 'Next →' : '✓ Done', classes: 'shepherd-button-primary', action: () => tour.next() });
+    return btns;
+  }
+
+  // Step 1 — Overview (attached to canvas)
+  tour.addStep({
+    id: 'overview',
+    attachTo: { element: '#canvas-container', on: 'left' },
+    title: '🧠 What you\'re looking at',
+    text: `
+      The main canvas shows the <strong>electric field (E-field)</strong> produced by the electrode array,
+      rendered in 3D through a layered head model: scalp → skull → CSF → grey matter → white matter.<br><br>
+      The <em>hot colours (red/yellow)</em> = high field; <em>cool colours (blue)</em> = low field.
+      The red dot marks the <strong>FCD target</strong> at the sulcus fundus.
+      ${progress(1)}
+    `,
+    buttons: [
+      { text: 'Skip tour', classes: 'shepherd-button-secondary', action: () => tour.cancel() },
+      { text: 'Next →', classes: 'shepherd-button-primary', action: () => tour.next() }
+    ]
+  });
+
+  // Step 2 — Electrode position
+  tour.addStep({
+    id: 'position',
+    attachTo: { element: '#card-position', on: 'right' },
+    title: '📍 Electrode Array Position',
+    text: `
+      Drag the <strong>X and Y offset sliders</strong> to shift the 7-electrode array laterally over the scalp.<br><br>
+      Try offsetting ±15 mm and watch whether the field at the FCD target (red sphere) changes.
+      The sulcus geometry tends to <em>funnel current regardless of lateral position</em> — this is the key physical insight.
+      ${progress(2)}
+    `,
+    buttons: buttons(2)
+  });
+
+  // Step 3 — Stimulation
+  tour.addStep({
+    id: 'stimulation',
+    attachTo: { element: '#card-stimulation', on: 'right' },
+    title: '⚡ Stimulation Settings',
+    text: `
+      <strong>Current amplitude</strong> scales the field linearly — doubling current doubles E everywhere.<br><br>
+      <strong>Mode</strong> is important: <em>Monopolar</em> creates a focused cone under the active electrode.
+      <em>Ring</em> mode (centre active, all surround return) produces a tighter focus at depth.
+      <em>Bipolar</em> creates a lateral field gradient useful for directional stimulation.
+      ${progress(3)}
+    `,
+    buttons: buttons(3)
+  });
+
+  // Step 4 — Epicranial vs Transcranial
+  tour.addStep({
+    id: 'placement',
+    attachTo: { element: '#btnEpicranial', on: 'right' },
+    title: '🔬 Epicranial vs Transcranial',
+    text: `
+      This is the central comparison. <strong>Epicranial</strong>: electrode surgically placed directly on the skull surface —
+      current bypasses scalp and enters CSF with minimal attenuation.<br><br>
+      <strong>Transcranial</strong>: electrode on skin — current must cross the skull (σ=0.01 S/m),
+      which is <em>43× more resistive</em> than scalp and diffuses the field substantially.
+      Switch between them to see the difference directly.
+      ${progress(4)}
+    `,
+    buttons: buttons(4)
+  });
+
+  // Step 5 — View tabs
+  tour.addStep({
+    id: 'views',
+    attachTo: { element: '#card-view', on: 'right' },
+    title: '👁 View Modes',
+    text: `
+      <strong>3D</strong>: Interactive rotating view with dual MRI cross-sections.<br>
+      <strong>Coronal/Sagittal/Axial</strong>: 2D slice views — drag the slice position slider to scan through depth.<br>
+      <strong>Flow</strong> <em>(highlighted in orange)</em>: shows current density vectors J = σ·E — reveals
+      how current actually moves through tissue, not just field strength. Watch vectors converge into the CSF sulcus.
+      ${progress(5)}
+    `,
+    buttons: buttons(5)
+  });
+
+  // Step 6 — Colour scale clip
+  tour.addStep({
+    id: 'colorscale',
+    attachTo: { element: '#colorClip', on: 'right' },
+    title: '🎨 Colour Scale Clip',
+    text: `
+      The electrode surface always creates a massive hotspot that dominates the colour scale —
+      making everything at cortical depth look uniformly blue.<br><br>
+      <strong>Lower this percentile</strong> (try 90–95%) to clip that hotspot and reveal
+      the subtle field variation within the sulcus and grey matter. The colourbar shows the true peak in amber.
+      ${progress(6)}
+    `,
+    buttons: buttons(6)
+  });
+
+  // Step 7 — Metrics
+  tour.addStep({
+    id: 'metrics',
+    attachTo: { element: '#card-metrics', on: 'right' },
+    title: '📊 Target Metrics',
+    text: `
+      <strong>Peak E</strong>: highest field anywhere in the model (usually at electrode surface).<br>
+      <strong>Target E</strong>: field specifically at the FCD location — what actually matters clinically.<br>
+      <strong>Selectivity</strong>: Target E ÷ mean E over surrounding 10 mm annulus.
+      A value <em>&gt;1</em> means the field is genuinely concentrated at the target, not just high everywhere.
+      ${progress(7)}
+    `,
+    buttons: buttons(7)
+  });
+
+  // Step 8 — Depth chart
+  tour.addStep({
+    id: 'depth',
+    attachTo: { element: '#card-depth', on: 'right' },
+    title: '📈 E-Field vs Depth',
+    text: `
+      This profile shows field strength along a vertical line directly under the array centre,
+      from scalp surface to white matter.<br><br>
+      Notice the <em>sharp drop across the skull</em> in transcranial mode — the resistive barrier effect.
+      In epicranial mode the drop is much smaller. <strong>Click the chart</strong> to toggle between
+      linear and log scale (log is better for seeing small cortical-depth values).
+      ${progress(8)}
+    `,
+    buttons: buttons(8)
+  });
+
+  // Step 9 — Physical insight
+  tour.addStep({
+    id: 'insight',
+    attachTo: { element: '#canvas-container', on: 'left' },
+    title: '💡 The key physical insight',
+    text: `
+      The CSF filling the sulcus has <strong>σ = 1.65 S/m</strong> — 6× higher than grey matter (0.276 S/m).
+      Current preferentially flows through this low-resistance channel, focusing it at the fundus
+      regardless of the exact electrode position overhead.<br><br>
+      This is Epicranial stimulaton can work for deep sulcal targets: <em>the geometry does the focusing, not the array</em>.
+      Try the Flow tab with Coronal view to see the current vectors converging.
+      ${progress(9)}
+    `,
+    buttons: [
+      { text: '← Back', classes: 'shepherd-button-secondary', action: () => tour.back() },
+      { text: '✓ Start exploring', classes: 'shepherd-button-primary', action: () => tour.complete() }
+    ]
+  });
+
+  return tour;
+}
+
+let activeTour = null;
+function startTour() {
+  if (activeTour) { try { activeTour.cancel(); } catch(e){} }
+  activeTour = makeTour();
+  activeTour.start();
+}
+</script>
+</body>
+</html>
